@@ -10,4 +10,9 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\UniversityExamScheduler.Application\UniversityExamScheduler.Application.csproj" />
+    <ProjectReference Include="..\UniversityExamScheduler.Infrastructure\UniversityExamScheduler.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>
