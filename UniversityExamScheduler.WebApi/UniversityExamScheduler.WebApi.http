@@ -1,0 +1,6 @@
+@UniversityExamScheduler.WebApi_HostAddress = http://localhost:5023
+
+GET {{UniversityExamScheduler.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
