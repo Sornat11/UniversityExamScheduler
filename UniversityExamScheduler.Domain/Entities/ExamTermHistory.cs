@@ -9,7 +9,7 @@ public class ExamTermHistory
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     [Column("exam_term_id")]
     [ForeignKey(nameof(ExamTerm))]

@@ -1,0 +1,8 @@
+using System;
+
+namespace UniversityExamScheduler.Application.Exceptions;
+
+public class EntityAlreadyExistsException : Exception
+{
+    public EntityAlreadyExistsException(string message) : base(message) { }
+}

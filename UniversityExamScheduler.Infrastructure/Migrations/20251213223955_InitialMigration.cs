@@ -1,13 +1,12 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace UniversityExamScheduler.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -179,8 +178,7 @@ namespace UniversityExamScheduler.Infrastructure.Migrations
                 name: "exam_term_history",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
                     exam_term_id = table.Column<Guid>(type: "uuid", nullable: false),
                     changed_by = table.Column<Guid>(type: "uuid", nullable: false),
                     changed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),

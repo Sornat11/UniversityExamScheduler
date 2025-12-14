@@ -1,6 +1,18 @@
-@host = http://localhost:5023
 
-GET {{host}}/weatherforecast/
-Accept: application/json
+@host = http://localhost:5000
 
-###
+### Create user
+POST {{host}}/api/user
+Content-Type: application/json
+
+{
+  "externalId": null,
+  "email": "ala@example.com",
+  "firstName": "Ala",
+  "lastName": "Kowalska",
+  "role": 0,
+  "isActive": true
+}
+
+### Get user by email
+GET {{host}}/api/user?email=ala@example.com
