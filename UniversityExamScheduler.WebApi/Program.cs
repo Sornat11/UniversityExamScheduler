@@ -7,8 +7,8 @@ using UniversityExamScheduler.WebApi.Middleware;
 using FluentValidation.AspNetCore;
 using UniversityExamScheduler.Infrastructure;
 using UniversityExamScheduler.Infrastructure.Persistence;
-
 using UniversityExamScheduler.WebApi.Logging;
+using UniversityExamScheduler.WebApi.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,14 +24,13 @@ builder.Services.AddApplication();
 builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
 
+builder.Services.AddSwaggerDocumentation();
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.UseSwaggerDocumentation();
 
 // app.UseHttpsRedirection();
 
