@@ -25,8 +25,8 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public async Task AddAsync(T entity, CancellationToken cancellationToken = default) =>
         await _set.AddAsync(entity, cancellationToken);
 
-    public void Update(T entity) => _set.Update(entity);
+    public async Task UpdateAsync(T entity, CancellationToken cancellationToken = default) => _set.Update(entity);
 
-    public void Remove(T entity) => _set.Remove(entity);
+    public async Task RemoveAsync(T entity, CancellationToken cancellationToken = default) => _set.Remove(entity);
 
 }

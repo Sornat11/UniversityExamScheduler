@@ -10,10 +10,8 @@ using UniversityExamScheduler.Infrastructure.Persistence;
 
 using UniversityExamScheduler.WebApi.Logging;
 
-// Create builder first so we can pass Configuration into Serilog configurator
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog early to capture startup logs (implementation kept in SerilogConfigurator)
 SerilogConfigurator.ConfigureSerilog(builder.Configuration);
 builder.Host.UseSerilog();
 
@@ -37,25 +35,6 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 app.MapControllers();
 
 try
@@ -71,9 +50,4 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
-}
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }

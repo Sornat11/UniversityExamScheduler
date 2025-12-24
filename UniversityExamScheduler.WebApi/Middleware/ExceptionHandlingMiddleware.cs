@@ -28,6 +28,14 @@ public class ExceptionHandlingMiddleware
             var payload = new { title = "Conflict", detail = ex.Message };
             await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
         }
+        catch (EntityNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Not Found");
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            context.Response.ContentType = "application/json";
+            var payload = new { title = "Not Found", detail = ex.Message };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

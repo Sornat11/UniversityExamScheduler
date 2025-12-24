@@ -2,7 +2,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using UniversityExamScheduler.Domain.Enums;
 
-namespace UniversityExamScheduler.Application.Dtos.User;
+namespace UniversityExamScheduler.Application.Dtos.User.Request;
 
 public class CreateUserDto
 {
@@ -15,7 +15,6 @@ public class CreateUserDto
     public string FirstName { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(50)]
     public string LastName { get; set; } = string.Empty;
 
     [Required]

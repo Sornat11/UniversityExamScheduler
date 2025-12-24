@@ -1,6 +1,6 @@
 using System;
 using AutoMapper;
-using UniversityExamScheduler.Application.Dtos.User;
+using UniversityExamScheduler.Application.Dtos.User.Request;
 using UniversityExamScheduler.Application.Dtos.User.Respone;
 using UniversityExamScheduler.Domain.Entities;
 
@@ -12,5 +12,6 @@ public class MappingProfile : Profile
     {
         CreateMap<CreateUserDto, User>();
         CreateMap<User, GetUserDto>();
+        CreateMap<UpdateUserDto, User>();
     }
 }

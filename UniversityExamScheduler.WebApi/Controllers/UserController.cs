@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using UniversityExamScheduler.Application.Dtos.User;
+using UniversityExamScheduler.Application.Dtos.User.Request;
 using UniversityExamScheduler.Application.Dtos.User.Respone;
 using UniversityExamScheduler.Application.Services;
 
@@ -27,6 +27,13 @@ namespace UniversityExamScheduler.WebApi.Controllers
             return CreatedAtAction(nameof(GetById), new { id = createdUser.Id }, createdDto);
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
+        {
+            await _userService.RemoveAsync(id, cancellationToken);
+            return NoContent();
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
@@ -44,6 +51,15 @@ namespace UniversityExamScheduler.WebApi.Controllers
             if (user is null) return NotFound();
             var userDto = _mapper.Map<GetUserDto>(user);
             return Ok(userDto);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(Guid id, UpdateUserDto userDto, CancellationToken cancellationToken)
+        {
+            await _userService.UpdateAsync(id, userDto, cancellationToken);
+            var updatedUser = await _userService.GetByIdAsync(id, cancellationToken);
+            var updatedDto = _mapper.Map<GetUserDto>(updatedUser);
+            return Ok(updatedDto);
         }
     }
 }

@@ -1,6 +1,6 @@
 using System;
 using FluentValidation;
-using UniversityExamScheduler.Application.Dtos.User;
+using UniversityExamScheduler.Application.Dtos.User.Request;
 
 namespace UniversityExamScheduler.Application.Validators.User;
 

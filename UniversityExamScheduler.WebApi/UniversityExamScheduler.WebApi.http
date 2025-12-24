@@ -1,13 +1,15 @@
 
 @host = http://localhost:5000
 
+@id = 706dc517-8b3f-419a-9f72-a2443972c724
+
 ### Create user
 POST {{host}}/api/user
 Content-Type: application/json
 
 {
   "externalId": null,
-  "email": "ala@example.com",
+  "email": "example@example.com",
   "firstName": "Ala",
   "lastName": "Kowalska",
   "role": 0,
@@ -16,3 +18,16 @@ Content-Type: application/json
 
 ### Get user by email
 GET {{host}}/api/user?email=ala@example.com
+
+### Update user
+PUT {{host}}/api/user/{{id}}
+Content-Type: application/json
+
+{
+  "externalId": null,
+  "email": "example@example.com",
+  "firstName": "Marzena",
+  "lastName": "Kowalska",
+  "role": 0,
+  "isActive": true
+}
