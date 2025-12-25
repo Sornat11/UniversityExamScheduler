@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Text.Json;
+using FluentValidation;
 using UniversityExamScheduler.Application.Exceptions;
 
 namespace UniversityExamScheduler.WebApi.Middleware;
@@ -19,6 +21,18 @@ public class ExceptionHandlingMiddleware
         try
         {
             await _next(context);
+        }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning(ex, "Validation failed");
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+            var payload = new
+            {
+                title = "Validation Failed",
+                errors = ex.Errors.Select(e => new { e.PropertyName, e.ErrorMessage })
+            };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
         }
         catch (EntityAlreadyExistsException ex)
         {

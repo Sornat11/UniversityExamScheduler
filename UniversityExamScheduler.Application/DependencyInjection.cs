@@ -10,6 +10,12 @@ public static class DependencyInjection
 	{
         // Services
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IStudentGroupService, StudentGroupService>();
+        services.AddScoped<IRoomService, RoomService>();
+        services.AddScoped<IExamService, ExamService>();
+        services.AddScoped<IExamSessionService, ExamSessionService>();
+        services.AddScoped<IExamTermService, ExamTermService>();
+        services.AddScoped<IExamTermHistoryService, ExamTermHistoryService>();
 
         // AutoMapper
         services.AddAutoMapper(typeof(DependencyInjection).Assembly);
