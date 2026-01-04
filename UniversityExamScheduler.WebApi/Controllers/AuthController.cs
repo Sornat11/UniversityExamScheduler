@@ -142,23 +142,4 @@ public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
     }
 }
 
-
-    [Authorize]
-    [HttpGet("me")]
-    public ActionResult<UserDto> Me()
-    {
-        var username = User.Identity?.Name ?? "";
-        var roleStr = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? Role.Student.ToString();
-        _ = Enum.TryParse<Role>(roleStr, out var role);
-
-        var isStarosta = User.Claims.Any(c => c.Type == "is_starosta" && c.Value == "true");
-
-        return Ok(new UserDto(
-            Username: username,
-            Role: role,
-            IsStarosta: isStarosta,
-            FirstName: null,
-            LastName: null
-        ));
-    }
 }
