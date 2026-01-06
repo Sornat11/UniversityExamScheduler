@@ -42,6 +42,14 @@ public class ExceptionHandlingMiddleware
             var payload = new { title = "Conflict", detail = ex.Message };
             await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
         }
+        catch (BusinessRuleException ex)
+        {
+            _logger.LogWarning(ex, "Business rule violated");
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.ContentType = "application/json";
+            var payload = new { title = "Business Rule Violation", detail = ex.Message };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+        }
         catch (EntityNotFoundException ex)
         {
             _logger.LogWarning(ex, "Not Found");

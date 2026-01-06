@@ -12,15 +12,15 @@ using UniversityExamScheduler.Infrastructure.Persistence;
 namespace UniversityExamScheduler.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251213223955_InitialMigration")]
-    partial class InitialMigration
+    [Migration("20260106110151_AddUserIsStarostaColumnFix")]
+    partial class AddUserIsStarostaColumnFix
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "8.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

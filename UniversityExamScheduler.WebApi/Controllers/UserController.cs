@@ -1,13 +1,16 @@
+using System;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using UniversityExamScheduler.Application.Dtos.User.Request;
 using UniversityExamScheduler.Application.Dtos.User.Respone;
 using UniversityExamScheduler.Application.Services;
 using Microsoft.AspNetCore.Authorization;
+using UniversityExamScheduler.Domain.Enums;
+using UniversityExamScheduler.Application.Dtos;
 
 namespace UniversityExamScheduler.WebApi.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     [Route("api/[controller]")]
     [ApiController]
     public class UserController(IUserService userService, IMapper mapper) : ControllerBase
@@ -37,13 +40,34 @@ namespace UniversityExamScheduler.WebApi.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetByEmail([FromQuery] string email, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetByEmail(
+            [FromQuery] string? email,
+            [FromQuery] string? search,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(email)) return BadRequest("email query parameter is required");
-            var user = await userService.GetByEmailAsync(email, cancellationToken);
-            if (user is null) return NotFound();
-            var userDto = mapper.Map<GetUserDto>(user);
-            return Ok(userDto);
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var user = await userService.GetByEmailAsync(email, cancellationToken);
+                if (user is null) return NotFound();
+                var userDto = mapper.Map<GetUserDto>(user);
+                return Ok(userDto);
+            }
+
+            var normalizedPage = page < 1 ? 1 : page;
+            var normalizedPageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
+
+            var (items, total) = await userService.SearchAsync(search, normalizedPage, normalizedPageSize, cancellationToken);
+            var dtos = mapper.Map<IEnumerable<GetUserDto>>(items);
+            var paged = new PagedResult<GetUserDto>
+            {
+                Items = dtos,
+                TotalCount = total,
+                Page = normalizedPage,
+                PageSize = normalizedPageSize
+            };
+            return Ok(paged);
         }
 
         [HttpPut("{id}")]

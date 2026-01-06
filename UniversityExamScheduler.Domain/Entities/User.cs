@@ -34,6 +34,9 @@ public class User
     [Required]
     public Role Role { get; set; }
 
+    [Column("is_starosta")]
+    public bool IsStarosta { get; set; }
+
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
 

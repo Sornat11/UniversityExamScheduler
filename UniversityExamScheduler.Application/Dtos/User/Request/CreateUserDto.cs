@@ -20,5 +20,7 @@ public class CreateUserDto
     [Required]
     public Role Role { get; set; }
 
+    public bool IsStarosta { get; set; }
+
     public bool IsActive { get; set; } = true;
 }

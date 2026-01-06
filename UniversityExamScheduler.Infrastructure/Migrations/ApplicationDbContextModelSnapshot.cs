@@ -17,7 +17,7 @@ namespace UniversityExamScheduler.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "8.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -304,6 +304,10 @@ namespace UniversityExamScheduler.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<bool>("IsStarosta")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_starosta");
 
                     b.Property<string>("LastName")
                         .IsRequired()

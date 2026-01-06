@@ -51,6 +51,7 @@ namespace UniversityExamScheduler.Infrastructure.Migrations
                     first_name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     last_name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     role = table.Column<int>(type: "integer", nullable: false),
+                    is_starosta = table.Column<bool>(type: "boolean", nullable: false),
                     is_active = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>

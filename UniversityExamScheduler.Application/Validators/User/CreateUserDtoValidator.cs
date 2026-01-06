@@ -13,6 +13,9 @@ public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
             .EmailAddress()
             .MaximumLength(320);
 
+        RuleFor(x => x.Role)
+            .IsInEnum();
+
         RuleFor(x => x.FirstName)
             .NotEmpty()
             .MaximumLength(100);
@@ -20,5 +23,10 @@ public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
         RuleFor(x => x.LastName)
             .NotEmpty()
             .MaximumLength(100);
+
+        RuleFor(x => x.IsStarosta)
+            .Equal(false)
+            .When(x => x.Role != Domain.Enums.Role.Student)
+            .WithMessage("Only students can be marked as starosta.");
     }
 }

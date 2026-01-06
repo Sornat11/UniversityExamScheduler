@@ -38,6 +38,10 @@ public class ExamSessionService : IExamSessionService
         if (sessionDto.StartDate > sessionDto.EndDate)
             throw new ArgumentException("Session start date cannot be after end date.");
 
+        var overlaps = await _uow.ExamSessions.OverlapsAsync(sessionDto.StartDate, sessionDto.EndDate, null, cancellationToken);
+        if (overlaps)
+            throw new BusinessRuleException("Exam session dates cannot overlap with an existing session.");
+
         var session = _mapper.Map<ExamSession>(sessionDto);
         if (session.Id == Guid.Empty) session.Id = Guid.NewGuid();
 
@@ -54,6 +58,14 @@ public class ExamSessionService : IExamSessionService
         var session = await _uow.ExamSessions.GetByIdAsync(id);
         if (session is null)
             throw new EntityNotFoundException($"Exam session with ID '{id}' not found.");
+
+        var overlaps = await _uow.ExamSessions.OverlapsAsync(sessionDto.StartDate, sessionDto.EndDate, id, cancellationToken);
+        if (overlaps)
+            throw new BusinessRuleException("Exam session dates cannot overlap with an existing session.");
+
+        var hasOutsideTerms = await _uow.ExamTerms.ExistsOutsideSessionAsync(id, sessionDto.StartDate, sessionDto.EndDate, cancellationToken);
+        if (hasOutsideTerms)
+            throw new BusinessRuleException("Cannot set dates that exclude existing exam terms for this session.");
 
         _mapper.Map(sessionDto, session);
         await _uow.ExamSessions.UpdateAsync(session, cancellationToken);

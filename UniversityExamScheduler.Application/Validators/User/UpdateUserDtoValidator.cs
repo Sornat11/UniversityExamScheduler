@@ -26,5 +26,10 @@ public class UpdateUserDtoValidator : AbstractValidator<UpdateUserDto>
 
         RuleFor(x => x.Role)
             .IsInEnum();
+
+        RuleFor(x => x.IsStarosta)
+            .Equal(false)
+            .When(x => x.Role != Domain.Enums.Role.Student)
+            .WithMessage("Only students can be marked as starosta.");
     }
 }

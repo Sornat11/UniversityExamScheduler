@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+using UniversityExamScheduler.Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +46,7 @@ builder.Services
 builder.Services.AddAuthorization(options =>
 {
     // opcjonalnie: polityki per rola
-    options.AddPolicy("DziekanatOnly", p => p.RequireRole("dziekanat"));
+    options.AddPolicy("DziekanatOnly", p => p.RequireRole(nameof(Role.DeanOffice), nameof(Role.Admin)));
 });
 
 SerilogConfigurator.ConfigureSerilog(builder.Configuration);

@@ -45,6 +45,16 @@ function isStarosta(user: any) {
     return Boolean(user?.isStarosta ?? user?.isStarost ?? user?.is_starosta);
 }
 
+function RequireRole({ allowed, children }: Readonly<{ allowed: AppRole[]; children: JSX.Element }>) {
+    const { user, isLoading } = useAuth();
+    if (isLoading) return <div className="p-6">Loading...</div>;
+    if (!user) return <Navigate to="/login" replace />;
+
+    const role = normalizeRole(user.role);
+    if (!role || !allowed.includes(role)) return <Navigate to="/app" replace />;
+    return children;
+}
+
 function AppRedirect() {
     const { user, isLoading } = useAuth();
     if (isLoading) return <div className="p-6">Loading...</div>;
@@ -206,7 +216,9 @@ export default function App() {
                 path="/app/deanoffice/*"
                 element={
                     <Protected>
-                        <DeanOfficeApp />
+                        <RequireRole allowed={["DeanOffice", "Admin"]}>
+                            <DeanOfficeApp />
+                        </RequireRole>
                     </Protected>
                 }
             />
@@ -215,7 +227,9 @@ export default function App() {
                 path="/app/admin"
                 element={
                     <Protected>
-                        <AdminApp />
+                        <RequireRole allowed={["Admin"]}>
+                            <AdminApp />
+                        </RequireRole>
                     </Protected>
                 }
             />

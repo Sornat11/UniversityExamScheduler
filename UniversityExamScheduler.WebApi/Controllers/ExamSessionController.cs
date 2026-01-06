@@ -4,10 +4,11 @@ using UniversityExamScheduler.Application.Dtos.ExamSession.Request;
 using UniversityExamScheduler.Application.Dtos.ExamSession.Respone;
 using UniversityExamScheduler.Application.Services;
 using Microsoft.AspNetCore.Authorization;
+using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
-[Authorize]
+[Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
 [Route("api/[controller]")]
 [ApiController]
 public class ExamSessionController(IExamSessionService sessionService, IMapper mapper) : ControllerBase
