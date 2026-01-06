@@ -258,6 +258,14 @@ export default function DeanOfficePanelPage() {
     async function handleSessionSave() {
         const payload = { ...sessionForm };
         try {
+            if (!payload.name || !payload.startDate || !payload.endDate) {
+                showError("Uzupelnij nazwe oraz daty sesji.");
+                return;
+            }
+            if (payload.startDate > payload.endDate) {
+                showError("Data poczatkowa nie moze byc po dacie koncowej.");
+                return;
+            }
             if (sessionEditingId) {
                 await updateExamSession(sessionEditingId, payload);
                 setToast("Zaktualizowano okres sesji.");
@@ -326,6 +334,29 @@ export default function DeanOfficePanelPage() {
         type: ExamTermType;
         status: ExamTermStatus;
     }) {
+        const selectedSession = sessions.find((s) => s.id === form.sessionId);
+        const todayISO = new Date().toISOString().slice(0, 10);
+
+        if (!selectedSession) {
+            showError("Wybierz prawidłowy okres sesji.");
+            return;
+        }
+
+        if (form.date < todayISO) {
+            showError("Data egzaminu nie może być w przeszłości.");
+            return;
+        }
+
+        if (form.date < selectedSession.startDate || form.date > selectedSession.endDate) {
+            showError("Data egzaminu musi mieścić się w wybranej sesji.");
+            return;
+        }
+
+        if (form.startTime >= form.endTime) {
+            showError("Godzina rozpoczęcia musi być przed godziną zakończenia.");
+            return;
+        }
+
         const creatorId = deanOfficeUsers[0]?.id ?? people[0]?.id ?? "";
         if (!creatorId) {
             showError("Brak uzytkownika do ustawienia jako tworca terminu.");

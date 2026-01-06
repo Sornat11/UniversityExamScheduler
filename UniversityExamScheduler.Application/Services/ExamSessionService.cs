@@ -36,7 +36,7 @@ public class ExamSessionService : IExamSessionService
     public async Task<ExamSession> AddAsync(CreateExamSessionDto sessionDto, CancellationToken cancellationToken = default)
     {
         if (sessionDto.StartDate > sessionDto.EndDate)
-            throw new ArgumentException("Session start date cannot be after end date.");
+            throw new BusinessRuleException("Session start date must be on or before end date.");
 
         var overlaps = await _uow.ExamSessions.OverlapsAsync(sessionDto.StartDate, sessionDto.EndDate, null, cancellationToken);
         if (overlaps)
@@ -53,7 +53,7 @@ public class ExamSessionService : IExamSessionService
     public async Task UpdateAsync(Guid id, UpdateExamSessionDto sessionDto, CancellationToken cancellationToken = default)
     {
         if (sessionDto.StartDate > sessionDto.EndDate)
-            throw new ArgumentException("Session start date cannot be after end date.");
+            throw new BusinessRuleException("Session start date must be on or before end date.");
 
         var session = await _uow.ExamSessions.GetByIdAsync(id);
         if (session is null)

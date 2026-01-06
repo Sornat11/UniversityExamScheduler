@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { proposeExamTerm } from "../student/studentExamData";
+import { normalizeTimeToSlot, proposeExamTerm } from "../student/studentExamData";
 import { SendHorizonal } from "lucide-react";
 
 const LECTURER_NAME = "Dr Piotr Wiśniewski";
@@ -29,6 +29,7 @@ export default function LecturerProposeTermPage() {
     const [dateISO, setDateISO] = useState(""); // yyyy-mm-dd
     const [time, setTime] = useState(""); // HH:mm
     const [room, setRoom] = useState("");
+    const [error, setError] = useState<string | null>(null);
 
     const canSubmit = useMemo(() => Boolean(subject && dateISO && room), [subject, dateISO, room]);
 
@@ -70,7 +71,10 @@ export default function LecturerProposeTermPage() {
                             type="time"
                             className="w-full h-11 border rounded-lg px-3"
                             value={time}
-                            onChange={(e) => setTime(e.target.value)}
+                            min="08:00"
+                            max="20:00"
+                            step="900"
+                            onChange={(e) => setTime(normalizeTimeToSlot(e.target.value) ?? e.target.value)}
                         />
                     </label>
                 </div>
@@ -89,8 +93,10 @@ export default function LecturerProposeTermPage() {
 
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-900">
                     <b>Informacja:</b> Propozycja zostanie wysłana do zatwierdzenia przez <b>starostę</b>.
-                    Po zatwierdzeniu przez obie strony, dziekanat dokona ostatecznej akceptacji.
+                    Po akceptacji przez obie strony termin uznany jest za zatwierdzony (bez udzialu dziekanatu).
                 </div>
+
+                {error && <div className="text-sm text-red-600">{error}</div>}
 
                 <button
                     type="button"
@@ -109,19 +115,24 @@ export default function LecturerProposeTermPage() {
                     onClick={() => {
                         if (!canSubmit) return;
 
-                        proposeExamTerm({
-                            title: subject,
-                            dateISO,
-                            time: time || undefined,
-                            room: room || undefined,
-                            lecturer: LECTURER_NAME,
+                        setError(null);
+                        try {
+                            proposeExamTerm({
+                                title: subject,
+                                dateISO,
+                                time: normalizeTimeToSlot(time) || undefined,
+                                room: room || undefined,
+                                lecturer: LECTURER_NAME,
 
-                            fieldOfStudy: SCOPE.fieldOfStudy,
-                            studyType: SCOPE.studyType,
-                            year: SCOPE.year,
-                        });
+                                fieldOfStudy: SCOPE.fieldOfStudy,
+                                studyType: SCOPE.studyType,
+                                year: SCOPE.year,
+                            });
 
-                        nav("/app/lecturer/subjects", { replace: true });
+                            nav("/app/lecturer/subjects", { replace: true });
+                        } catch (e: any) {
+                            setError(e?.message ?? "Nie uda?o si? zapisa? propozycji.");
+                        }
                     }}
                 >
                     <SendHorizonal className="w-4 h-4" />
@@ -140,3 +151,4 @@ export default function LecturerProposeTermPage() {
         </div>
     );
 }
+

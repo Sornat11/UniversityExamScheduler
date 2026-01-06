@@ -7,6 +7,7 @@ using FluentValidation.AspNetCore;
 using UniversityExamScheduler.Infrastructure;
 using UniversityExamScheduler.Infrastructure.Persistence;
 using UniversityExamScheduler.WebApi.Logging;
+using UniversityExamScheduler.WebApi.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -81,6 +82,11 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    await app.Services.SeedReferenceDataAsync();
+}
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();

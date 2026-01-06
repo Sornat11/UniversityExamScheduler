@@ -58,6 +58,14 @@ public class ExceptionHandlingMiddleware
             var payload = new { title = "Not Found", detail = ex.Message };
             await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Bad request");
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+            var payload = new { title = "Bad Request", detail = ex.Message };
+            await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

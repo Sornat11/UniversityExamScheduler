@@ -83,6 +83,8 @@ export default function StarostaSubjectsPage() {
     const [studyType, setStudyType] = useState("Wszystkie");
     const [year, setYear] = useState("Wszystkie");
     const [status, setStatus] = useState<"Wszystkie" | ExamStatus>("Wszystkie");
+    const fallback = "Brak danych";
+    const normalize = (v: string) => v.trim().toLowerCase();
 
     // load + subscribe do wspólnego store
     useEffect(() => {
@@ -116,31 +118,31 @@ export default function StarostaSubjectsPage() {
             .map((e) => ({
                 id: e.id,
                 subject: e.title,
-                fieldOfStudy: e.fieldOfStudy ?? "—",
-                studyType: e.studyType ?? "—",
-                year: e.year ?? "—",
-                lecturer: e.lecturer ?? "—",
+                fieldOfStudy: e.fieldOfStudy ?? fallback,
+                studyType: e.studyType ?? fallback,
+                year: e.year ?? fallback,
+                lecturer: e.lecturer ?? fallback,
                 date: formatDatePLFromISO(e.dateISO),
-                time: e.time ?? "—",
-                room: e.room ?? "—",
+                time: e.time ?? fallback,
+                room: e.room ?? fallback,
                 status: e.status,
             }))
             .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     }, [events]);
 
     const options = useMemo(() => {
-        const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== "—")));
-        const types = Array.from(new Set(rows.map((r) => r.studyType).filter((x) => x !== "—")));
-        const years = Array.from(new Set(rows.map((r) => r.year).filter((x) => x !== "—")));
+        const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== fallback)));
+        const types = Array.from(new Set(rows.map((r) => r.studyType).filter((x) => x !== fallback)));
+        const years = Array.from(new Set(rows.map((r) => r.year).filter((x) => x !== fallback)));
         return { fields, types, years };
     }, [rows]);
 
     const filtered = useMemo(() => {
         let r = rows;
 
-        if (field !== "Wszystkie") r = r.filter((x) => x.fieldOfStudy === field);
-        if (studyType !== "Wszystkie") r = r.filter((x) => x.studyType === studyType);
-        if (year !== "Wszystkie") r = r.filter((x) => x.year === year);
+        if (field !== "Wszystkie") r = r.filter((x) => normalize(x.fieldOfStudy) === normalize(field));
+        if (studyType !== "Wszystkie") r = r.filter((x) => normalize(x.studyType) === normalize(studyType));
+        if (year !== "Wszystkie") r = r.filter((x) => normalize(x.year) === normalize(year));
         if (status !== "Wszystkie") r = r.filter((x) => x.status === status);
 
         return r;
@@ -150,7 +152,6 @@ export default function StarostaSubjectsPage() {
         <div className="space-y-6 max-w-6xl mx-auto px-4">
             <ToastView toast={toast} />
 
-            <div className="text-slate-900 font-semibold text-xl">Lista przedmiotów</div>
 
             {/* Filtry */}
             <div className="bg-white border rounded-2xl p-6">
@@ -336,3 +337,9 @@ export default function StarostaSubjectsPage() {
         </div>
     );
 }
+
+
+
+
+
+

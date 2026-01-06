@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { proposeExamTerm } from "./studentExamData";
+import { normalizeTimeToSlot, proposeExamTerm } from "./studentExamData";
 import { SendHorizonal } from "lucide-react";
 
 const STAROSTA_SCOPE = {
@@ -27,6 +27,7 @@ export default function StarostaProposeTermPage() {
     const [room, setRoom] = useState(ROOM_OPTIONS[0] ?? "");
     const [dateISO, setDateISO] = useState(""); // yyyy-mm-dd
     const [time, setTime] = useState(""); // HH:mm
+    const [error, setError] = useState<string | null>(null);
 
     const canSubmit = useMemo(() => {
         return Boolean(subject && room && dateISO);
@@ -71,7 +72,10 @@ export default function StarostaProposeTermPage() {
                             type="time"
                             className="w-full h-11 border rounded-lg px-3"
                             value={time}
-                            onChange={(e) => setTime(e.target.value)}
+                            min="08:00"
+                            max="20:00"
+                            step="900"
+                            onChange={(e) => setTime(normalizeTimeToSlot(e.target.value) ?? e.target.value)}
                         />
                     </label>
                 </div>
@@ -94,8 +98,10 @@ export default function StarostaProposeTermPage() {
 
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-900">
                     <b>Informacja:</b> Propozycja zostanie wysłana do zatwierdzenia przez prowadzącego.
-                    Po zatwierdzeniu przez obie strony, dziekanat dokona ostatecznej akceptacji.
+                    Po akceptacji przez obie strony termin uznany jest za zatwierdzony (bez udzia?u dziekanatu)..
                 </div>
+
+                {error && <div className="text-sm text-red-600">{error}</div>}
 
                 <button
                     type="button"
@@ -112,20 +118,24 @@ export default function StarostaProposeTermPage() {
   "
                     onClick={() => {
                         if (!canSubmit) return;
-
-                        proposeExamTerm({
+                        setError(null);
+                        try {
+                            proposeExamTerm({
                             title: subject,
                             dateISO,
-                            time: time || undefined,
+                            time: normalizeTimeToSlot(time) || undefined,
                             room: room || undefined,
 
                             // ✅ dzięki temu w tabeli nie będą puste Kierunek/Typ/Rok
                             fieldOfStudy: STAROSTA_SCOPE.fieldOfStudy,
                             studyType: STAROSTA_SCOPE.studyType,
                             year: STAROSTA_SCOPE.year,
-                        });
+                            });
 
-                        nav("/app/starosta/subjects", { replace: true });
+                            nav("/app/starosta/subjects", { replace: true });
+                        } catch (e: any) {
+                            setError(e?.message ?? "Nie uda?o si? zapisa? propozycji.");
+                        }
                     }}
                 >
                     <SendHorizonal className="w-4 h-4" />
@@ -145,3 +155,6 @@ export default function StarostaProposeTermPage() {
         </div>
     );
 }
+
+
+

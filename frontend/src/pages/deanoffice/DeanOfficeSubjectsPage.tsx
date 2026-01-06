@@ -41,6 +41,8 @@ export default function DeanOfficeSubjectsPage() {
     const [studyType, setStudyType] = useState("Wszystkie");
     const [year, setYear] = useState("Wszystkie");
     const [status, setStatus] = useState<"Wszystkie" | ExamStatus>("Wszystkie");
+    const fallback = "Brak danych";
+    const normalize = (v: string) => v.trim().toLowerCase();
 
     useEffect(() => {
         let alive = true;
@@ -63,30 +65,30 @@ export default function DeanOfficeSubjectsPage() {
     const rows = useMemo(() => {
         return events.map((e) => ({
             ...e,
-            fieldOfStudy: e.fieldOfStudy ?? "—",
-            studyType: e.studyType ?? "—",
-            year: e.year ?? "—",
-            lecturer: e.lecturer ?? "—",
-            time: e.time ?? "—",
-            room: e.room ?? "—",
+            fieldOfStudy: e.fieldOfStudy ?? fallback,
+            studyType: e.studyType ?? fallback,
+            year: e.year ?? fallback,
+            lecturer: e.lecturer ?? fallback,
+            time: e.time ?? fallback,
+            room: e.room ?? fallback,
             datePL: formatDatePL(e.dateISO),
             // ✅ dziekanat ma akcje tylko gdy obie strony zaakceptowały i nie ma finalnego zatwierdzenia
-            canFinalAction: !e.deanApproved && !!e.approvedByStarosta && !!e.approvedByLecturer,
+            canFinalAction: !e.deanApproved && e.status !== "Zatwierdzony" && !!e.approvedByStarosta && !!e.approvedByLecturer,
         }));
     }, [events]);
 
     const options = useMemo(() => {
-        const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== "—")));
-        const types = Array.from(new Set(rows.map((r) => r.studyType).filter((x) => x !== "—")));
-        const years = Array.from(new Set(rows.map((r) => r.year).filter((x) => x !== "—")));
+        const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== fallback)));
+        const types = Array.from(new Set(rows.map((r) => r.studyType).filter((x) => x !== fallback)));
+        const years = Array.from(new Set(rows.map((r) => r.year).filter((x) => x !== fallback)));
         return { fields, types, years };
     }, [rows]);
 
     const filtered = useMemo(() => {
         let r = rows;
-        if (field !== "Wszystkie") r = r.filter((x) => x.fieldOfStudy === field);
-        if (studyType !== "Wszystkie") r = r.filter((x) => x.studyType === studyType);
-        if (year !== "Wszystkie") r = r.filter((x) => x.year === year);
+        if (field !== "Wszystkie") r = r.filter((x) => normalize(x.fieldOfStudy) === normalize(field));
+        if (studyType !== "Wszystkie") r = r.filter((x) => normalize(x.studyType) === normalize(studyType));
+        if (year !== "Wszystkie") r = r.filter((x) => normalize(x.year) === normalize(year));
         if (status !== "Wszystkie") r = r.filter((x) => x.status === status);
         return r;
     }, [rows, field, studyType, year, status]);
@@ -99,7 +101,6 @@ export default function DeanOfficeSubjectsPage() {
                 </div>
             )}
 
-            <div className="text-slate-900 font-semibold text-xl">Lista przedmiotów</div>
 
             <div className="bg-white border rounded-2xl p-6">
                 <div className="flex items-center gap-2 text-slate-800 font-medium">
@@ -221,3 +222,10 @@ export default function DeanOfficeSubjectsPage() {
         </div>
     );
 }
+
+
+
+
+
+
+

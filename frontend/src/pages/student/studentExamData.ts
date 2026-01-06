@@ -114,9 +114,29 @@ function genId() {
     return "ex_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
 }
 
+const MIN_TIME_MINUTES = 8 * 60;
+const MAX_TIME_MINUTES = 20 * 60;
+
+export function normalizeTimeToSlot(raw?: string | null): string | undefined {
+    if (!raw) return undefined;
+    const match = /^(\d{1,2}):(\d{2})/.exec(raw.trim());
+    if (!match) return undefined;
+
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return undefined;
+
+    const total = Math.max(MIN_TIME_MINUTES, Math.min(MAX_TIME_MINUTES, hours * 60 + minutes));
+    const rounded = Math.round(total / 15) * 15;
+    const clamped = Math.max(MIN_TIME_MINUTES, Math.min(MAX_TIME_MINUTES, rounded));
+    const hh = String(Math.floor(clamped / 60)).padStart(2, "0");
+    const mm = String(clamped % 60).padStart(2, "0");
+    return `${hh}:${mm}`;
+}
+
 function recomputeStatus(e: ExamEvent): ExamStatus {
-    if (e.deanApproved) return "Zatwierdzony";
-    if (e.approvedByStarosta || e.approvedByLecturer) return "Częściowo zatwierdzony";
+    if ((e.approvedByStarosta && e.approvedByLecturer) || e.deanApproved) return "Zatwierdzony";
+    if (e.approvedByStarosta || e.approvedByLecturer) return "Cz?t?>ciowo zatwierdzony";
     return "Proponowany";
 }
 
@@ -124,12 +144,14 @@ function normalizeExam(e: ExamEvent): ExamEvent {
     const approvedByStarosta = Boolean(e.approvedByStarosta);
     const approvedByLecturer = Boolean(e.approvedByLecturer);
     const deanApproved = Boolean(e.deanApproved);
+    const normalizedTime = normalizeTimeToSlot(e.time);
 
     const normalized: ExamEvent = {
         ...e,
         approvedByStarosta,
         approvedByLecturer,
         deanApproved,
+        time: normalizedTime,
         status: recomputeStatus({ ...e, approvedByStarosta, approvedByLecturer, deanApproved }),
     };
 
@@ -233,7 +255,7 @@ function defaultMockExams(): ExamEvent[] {
             title: "Matematyka",
             lecturer: "Dr Piotr Wiśniewski",
             dateISO: "2026-01-05",
-            time: "16:22",
+            time: "16:15",
             room: "A-100",
             ...base,
             approvedByStarosta: false,
@@ -310,11 +332,27 @@ export function setSessionPeriod(startISO: string, endISO: string) {
 
 /** Dodanie propozycji terminu (starosta/prowadzący) */
 export function proposeExamTerm(input: ProposeExamTermInput): ExamEvent {
+    if (session) {
+        const d = new Date(input.dateISO + "T00:00:00");
+        const start = new Date(session.startISO + "T00:00:00");
+        const end = new Date(session.endISO + "T00:00:00");
+        if (d < start || d > end) {
+            throw new Error("Termin musi mieścić się w aktywnej sesji egzaminacyjnej.");
+        }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const proposed = new Date(input.dateISO + "T00:00:00");
+    if (proposed < today) {
+        throw new Error("Nie można proponować terminu z datą wsteczną.");
+    }
+
     const e: ExamEvent = normalizeExam({
         id: genId(),
         title: input.title.trim(),
         dateISO: input.dateISO,
-        time: input.time,
+        time: normalizeTimeToSlot(input.time),
         room: input.room,
         fieldOfStudy: input.fieldOfStudy,
         studyType: input.studyType,

@@ -81,6 +81,9 @@ public class ExamTermService : IExamTermService
         if (session is null)
             throw new EntityNotFoundException($"Exam session with ID '{sessionId}' not found.");
 
+        if (date < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+            throw new ArgumentException("Exam term date cannot be in the past.");
+
         if (date < session.StartDate || date > session.EndDate)
             throw new ArgumentException("Exam term date must be within the exam session range.");
     }
