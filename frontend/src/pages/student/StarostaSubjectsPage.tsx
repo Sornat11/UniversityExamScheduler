@@ -4,7 +4,7 @@ import {
     ensureExamDataLoaded,
     getExamDataSnapshot,
     subscribeExamData,
-    type ExamStatus, type ExamEvent, starostaApprove,
+    type ExamStatus, type ExamEvent, starostaApprove, starostaReject,
 } from "./studentExamData";
 
 type Row = {
@@ -147,7 +147,7 @@ export default function StarostaSubjectsPage() {
     }, [rows, field, studyType, year, status]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-6xl mx-auto px-4">
             <ToastView toast={toast} />
 
             <div className="text-slate-900 font-semibold text-xl">Lista przedmiotów</div>
@@ -211,11 +211,11 @@ export default function StarostaSubjectsPage() {
             </div>
 
             {/* Tabela */}
-            <div className="bg-white border rounded-2xl overflow-hidden">
+            <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b text-sm text-slate-600">{loading ? "Ładowanie..." : `Wyniki: ${filtered.length}`}</div>
 
-                <div className="overflow-x-auto">
-                    <table className="min-w-[1120px] w-full">
+                <div className="overflow-x-auto hidden md:block">
+                    <table className="min-w-280 w-full">
                         <thead className="bg-neutral-50 border-b">
                         <tr className="text-left text-sm text-slate-600">
                             <th className="px-6 py-3 font-medium">Przedmiot</th>
@@ -290,6 +290,47 @@ export default function StarostaSubjectsPage() {
                         ))}
                         </tbody>
                     </table>
+                </div>
+
+                <div className="md:hidden divide-y divide-slate-100">
+                    {filtered.length === 0 && (
+                        <div className="p-4 text-sm text-slate-600">Brak wyników.</div>
+                    )}
+                    {filtered.map((r) => (
+                        <div key={r.id} className="p-4 space-y-2">
+                            <div className="flex justify-between items-center">
+                                <div className="text-slate-900 font-semibold">{r.subject}</div>
+                                <StatusBadge status={r.status} />
+                            </div>
+                            <div className="text-sm text-slate-600">{r.fieldOfStudy} • {r.studyType} • rok {r.year}</div>
+                            <div className="text-sm text-slate-700">{r.lecturer}</div>
+                            <div className="text-sm text-slate-700">{r.date} • {r.time || "-"} • {r.room || "-"}</div>
+                            {r.status === "Proponowany" && (
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            starostaApprove(r.id);
+                                            showToast({ type: "success", message: "Egzamin został zatwierdzony!" });
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
+                                    >
+                                        Zatwierdź
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            starostaReject(r.id);
+                                            showToast({ type: "error", message: "Propozycja została odrzucona." });
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold"
+                                    >
+                                        Odrzuć
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>

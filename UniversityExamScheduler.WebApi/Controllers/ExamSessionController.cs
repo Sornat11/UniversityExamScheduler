@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using UniversityExamScheduler.Application.Dtos.ExamSession.Request;
 using UniversityExamScheduler.Application.Dtos.ExamSession.Respone;
 using UniversityExamScheduler.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class ExamSessionController(IExamSessionService sessionService, IMapper mapper) : ControllerBase

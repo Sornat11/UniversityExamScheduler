@@ -444,8 +444,14 @@ export function downloadExamCSV(filename = "egzaminy.csv", rows?: ExamEvent[]) {
 
     URL.revokeObjectURL(url);
 }
+
+export function starostaReject(id: string) {
+    exams = exams.filter((e) => e.id !== id);
+    notify();
+}
+
 export const starostaApprove = approveByStarosta;
-export const starostaReject = !approveByStarosta;
 export const lecturerApprove = approveByLecturer;
 export const deanApprove = deanFinalApprove;
 export const deanReject = deanFinalReject;
+export const starostaRejectAction = starostaReject;

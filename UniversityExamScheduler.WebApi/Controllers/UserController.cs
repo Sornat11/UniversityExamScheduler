@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using UniversityExamScheduler.Application.Dtos.User.Request;
 using UniversityExamScheduler.Application.Dtos.User.Respone;
 using UniversityExamScheduler.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace UniversityExamScheduler.WebApi.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UserController(IUserService userService, IMapper mapper) : ControllerBase

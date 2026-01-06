@@ -23,7 +23,7 @@ function Placeholder({ title }: Readonly<{ title: string }>) {
 
 function Protected({ children }: Readonly<{ children: JSX.Element }>) {
     const { user, isLoading } = useAuth();
-    if (isLoading) return <div className="p-6">Ładowanie...</div>;
+    if (isLoading) return <div className="p-6">Loading...</div>;
     if (!user) return <Navigate to="/login" replace />;
     return children;
 }
@@ -47,7 +47,7 @@ function isStarosta(user: any) {
 
 function AppRedirect() {
     const { user, isLoading } = useAuth();
-    if (isLoading) return <div className="p-6">Ładowanie...</div>;
+    if (isLoading) return <div className="p-6">Loading...</div>;
     if (!user) return <Navigate to="/login" replace />;
 
     const role = normalizeRole(user.role);
@@ -224,3 +224,5 @@ export default function App() {
         </Routes>
     );
 }
+
+

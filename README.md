@@ -10,7 +10,7 @@ Web API that streamlines planning and managing university exams. It coordinates 
 - Serilog-based logging.
 
 ## Tech Stack
-- .NET 10 (ASP.NET Core Web API), Entity Framework Core + PostgreSQL (Npgsql)
+- .NET 8 (ASP.NET Core Web API), Entity Framework Core + PostgreSQL (Npgsql)
 - AutoMapper, FluentValidation
 - Serilog, Swagger/OpenAPI
 
@@ -38,3 +38,16 @@ Run all tests (when present):
 ```bash
 dotnet test
 ```
+
+## Frontend (Vite + React)
+- Install deps: `cd frontend && npm install`.
+- Dev server with API proxy: `npm run dev` (proxies `/api` to `http://127.0.0.1:5000`).
+- Auth token is stored in `localStorage` (`ues_token`) and sent automatically.
+
+## Auth (demo)
+- Use `/api/auth/login` with usernames: `student`, `starosta`, `prowadzacy`, `dziekanat`, `admin` (any password).
+- `/api/auth/me` returns the current user from the JWT.
+- API controllers require `Authorization: Bearer <token>`.
+
+## More docs
+- Technical runbook: `docs/DeveloperRunbook.md`

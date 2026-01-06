@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-type User = { username: string; role: number; isStarost: boolean };
+type Role = "Student" | "Lecturer" | "DeanOffice" | "Admin";
+type User = { username: string; role: Role | number; isStarosta: boolean; firstName?: string; lastName?: string };
 type LoginResponse = { accessToken: string; expiresAtUtc: string; user: User };
 
 type AuthState = {
@@ -13,13 +14,22 @@ type AuthState = {
 
 const AuthCtx = createContext<AuthState | null>(null);
 const TOKEN_KEY = "ues_token";
+const USER_KEY = "ues_user";
 
 export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
     const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<User | null>(() => {
+        const raw = localStorage.getItem(USER_KEY);
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw) as User;
+        } catch {
+            return null;
+        }
+    });
     const [isLoading, setIsLoading] = useState(true);
 
-    // Hydrate user z tokenu
+    // Hydrate user from stored token
     useEffect(() => {
         const run = async () => {
             if (!token) {
@@ -34,8 +44,10 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
                 if (!res.ok) throw new Error("Unauthorized");
                 const me = (await res.json()) as User;
                 setUser(me);
+                localStorage.setItem(USER_KEY, JSON.stringify(me));
             } catch {
                 localStorage.removeItem(TOKEN_KEY);
+                localStorage.removeItem(USER_KEY);
                 setToken(null);
                 setUser(null);
             } finally {
@@ -58,7 +70,6 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
                 });
 
                 const raw = await res.text();
-                console.log(res);
                 if (!res.ok) {
                     try {
                         const j = JSON.parse(raw);
@@ -71,12 +82,14 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
                 const data = JSON.parse(raw) as LoginResponse;
 
                 localStorage.setItem(TOKEN_KEY, data.accessToken);
+                localStorage.setItem(USER_KEY, JSON.stringify(data.user));
                 setToken(data.accessToken);
                 setUser(data.user);
             },
 
             logout: () => {
                 localStorage.removeItem(TOKEN_KEY);
+                localStorage.removeItem(USER_KEY);
                 setToken(null);
                 setUser(null);
             },

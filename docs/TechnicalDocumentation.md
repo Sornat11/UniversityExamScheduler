@@ -1,7 +1,7 @@
 # Dokumentacja techniczna — University Exam Scheduler
 
 ## 1. Stos technologiczny
-- .NET 10 (ASP.NET Core Web API)
+-  .NET 8 (ASP.NET Core Web API)
 - Entity Framework Core + Npgsql (PostgreSQL)
 - AutoMapper, FluentValidation
 - Serilog (logowanie), Swagger/OpenAPI (kontrakt HTTP)
@@ -69,3 +69,4 @@ Szczegóły typów i relacji: `docs/DatabaseSchema.md`.
 - Budowanie: `dotnet build`.
 - Migracje EF Core (przykład): `dotnet ef migrations add <name> -p UniversityExamScheduler.Infrastructure -s UniversityExamScheduler.WebApi`.
 - Uruchomienie testów (kiedy zostaną dodane): `dotnet test`.
+

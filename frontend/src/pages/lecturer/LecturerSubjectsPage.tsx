@@ -170,7 +170,7 @@ export default function LecturerSubjectsPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="min-w-[1120px] w-full">
+                    <table className="min-w-280 w-full">
                         <thead className="bg-neutral-50 border-b">
                         <tr className="text-left text-sm text-slate-600">
                             <th className="px-6 py-3 font-medium">Przedmiot</th>

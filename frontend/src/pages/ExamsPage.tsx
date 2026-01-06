@@ -1,22 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../api/client";
+import { authHeaders } from "../api/client";
 
-export default function RoomsPage() {
+type ExamDto = {
+    id: string;
+    name: string;
+    lecturerId: string;
+    groupId: string;
+};
+
+export default function ExamsPage() {
     const { data, isLoading, error } = useQuery({
-        queryKey: ["rooms"],
+        queryKey: ["exams"],
         queryFn: async () => {
-            const res = await api.GET("/api/Exam"); 
-            if (res.error) throw res.error;
-            return res.data;
+            const res = await fetch("/api/Exam", { headers: { ...(authHeaders() ?? {}) } });
+            if (!res.ok) throw new Error(`Exam HTTP ${res.status}`);
+            return (await res.json()) as ExamDto[];
         },
     });
 
-    if (isLoading) return <div>Ładowanie…</div>;
-    if (error) return <div>Błąd: {String(error)}</div>;
+    if (isLoading) return <div>Loading…</div>;
+    if (error) return <div>Error: {String(error)}</div>;
 
     return (
         <div style={{ padding: 16 }}>
-            <h1>Sale</h1>
+            <h1>Egzaminy</h1>
             <pre>{JSON.stringify(data, null, 2)}</pre>
         </div>
     );

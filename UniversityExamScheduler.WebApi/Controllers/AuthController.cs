@@ -10,6 +10,7 @@ namespace UniversityExamScheduler.WebApi.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[Authorize]
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _config;
@@ -35,50 +36,49 @@ public class AuthController : ControllerBase
         UserDto User
     );
 
-[HttpPost("login")]
-public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
-{
-    var username = (req.Username ?? "").Trim().ToLowerInvariant();
-
-    var (role, isStarosta) = username switch
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
     {
-        "student" => (Role.Student, false),
-        "starosta" => (Role.Student, true),
-        "prowadzacy" => (Role.Lecturer, false),
-        "dziekanat" => (Role.DeanOffice, false),
-        "admin" => (Role.Admin, false),
-        _ => (Role.Student, false)
-    };
+        var username = (req.Username ?? string.Empty).Trim().ToLowerInvariant();
 
-    if (username is not ("student" or "starosta" or "prowadzacy" or "dziekanat" or "admin"))
-        return Unauthorized(new { message = "Nieznany użytkownik demo. Użyj: student/starosta/prowadzacy/dziekanat/admin" });
-
-    var jwt = _config.GetSection("Jwt");
-    var issuer = jwt["Issuer"];
-    var audience = jwt["Audience"];
-    var key = jwt["Key"];
-    var expiresMinutes = int.Parse(jwt["ExpiresMinutes"] ?? "120");
-
-    if (string.IsNullOrWhiteSpace(issuer) ||
-        string.IsNullOrWhiteSpace(audience) ||
-        string.IsNullOrWhiteSpace(key))
-    {
-        return StatusCode(500, new
+        var (role, isStarosta) = username switch
         {
-            message = "Brakuje konfiguracji JWT w appsettings. Wymagane: Jwt:Issuer, Jwt:Audience, Jwt:Key, Jwt:ExpiresMinutes."
-        });
-    }
+            "student" => (Role.Student, false),
+            "starosta" => (Role.Student, true),
+            "prowadzacy" => (Role.Lecturer, false),
+            "dziekanat" => (Role.DeanOffice, false),
+            "admin" => (Role.Admin, false),
+            _ => (Role.Student, false)
+        };
 
-    if (key.Length < 32)
-    {
-        return StatusCode(500, new
+        if (username is not ("student" or "starosta" or "prowadzacy" or "dziekanat" or "admin"))
+            return Unauthorized(new { message = "Unknown demo user. Allowed: student/starosta/prowadzacy/dziekanat/admin" });
+
+        var jwt = _config.GetSection("Jwt");
+        var issuer = jwt["Issuer"];
+        var audience = jwt["Audience"];
+        var key = jwt["Key"];
+        var expiresMinutes = int.Parse(jwt["ExpiresMinutes"] ?? "120");
+
+        if (string.IsNullOrWhiteSpace(issuer) ||
+            string.IsNullOrWhiteSpace(audience) ||
+            string.IsNullOrWhiteSpace(key))
         {
-            message = "Jwt:Key jest za krótki. Ustaw co najmniej 32 znaki (dla HMAC SHA256)."
-        });
-    }
+            return StatusCode(500, new
+            {
+                message = "Missing JWT configuration. Required keys: Jwt:Issuer, Jwt:Audience, Jwt:Key, Jwt:ExpiresMinutes."
+            });
+        }
 
-    try
-    {
+        if (key.Length < 32)
+        {
+            return StatusCode(500, new
+            {
+                message = "Jwt:Key is too short. Use at least 32 characters for HMAC SHA256."
+            });
+        }
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, username),
@@ -86,7 +86,9 @@ public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
         };
 
         if (isStarosta)
+        {
             claims.Add(new Claim("is_starosta", "true"));
+        }
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
         var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
@@ -102,8 +104,34 @@ public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
         );
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        var userDto = BuildUser(username, role, isStarosta);
 
-        var userDto = new UserDto(
+        return Ok(new LoginResponse(
+            AccessToken: tokenString,
+            ExpiresAtUtc: expiresAt,
+            User: userDto
+        ));
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public ActionResult<UserDto> Me()
+    {
+        var username = User.Identity?.Name;
+        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(roleClaim))
+        {
+            return Unauthorized(new { message = "Token is missing required claims." });
+        }
+
+        var isStarosta = User.HasClaim(c => c.Type == "is_starosta" && c.Value == "true");
+        var role = Enum.TryParse<Role>(roleClaim, out var parsedRole) ? parsedRole : Role.Student;
+
+        return Ok(BuildUser(username, role, isStarosta));
+    }
+
+    private static UserDto BuildUser(string username, Role role, bool isStarosta) =>
+        new(
             Username: username,
             Role: role,
             IsStarosta: isStarosta,
@@ -121,25 +149,8 @@ public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
                 "student" => "Kowalski",
                 "starosta" => "Kowalski",
                 "prowadzacy" => "Nowak",
-                "dziekanat" => "Wiśniewska",
+                "dziekanat" => "Wisniewska",
                 _ => null
             }
         );
-
-        return Ok(new LoginResponse(
-            AccessToken: tokenString,
-            ExpiresAtUtc: expiresAt,
-            User: userDto
-        ));
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new
-        {
-            message = ex.Message,
-            type = ex.GetType().FullName
-        });
-    }
-}
-
 }

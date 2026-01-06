@@ -128,7 +128,7 @@ export default function DeanOfficePanelPage() {
                 <div className="text-slate-900 font-semibold mb-4">Egzaminy oczekujące na ostateczne zatwierdzenie</div>
 
                 <div className="overflow-x-auto">
-                    <table className="min-w-[920px] w-full">
+                    <table className="min-w-230 w-full">
                         <thead className="bg-neutral-50 border-b">
                         <tr className="text-left text-sm text-slate-600">
                             <th className="px-4 py-3 font-medium">Przedmiot</th>
@@ -193,7 +193,7 @@ export default function DeanOfficePanelPage() {
                 <div className="text-slate-900 font-semibold mb-4">Ostatecznie zatwierdzone egzaminy</div>
 
                 <div className="overflow-x-auto">
-                    <table className="min-w-[820px] w-full">
+                    <table className="min-w-205 w-full">
                         <thead className="bg-neutral-50 border-b">
                         <tr className="text-left text-sm text-slate-600">
                             <th className="px-4 py-3 font-medium">Przedmiot</th>

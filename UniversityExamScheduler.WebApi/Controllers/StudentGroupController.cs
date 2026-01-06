@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using UniversityExamScheduler.Application.Dtos.StudentGroup.Request;
 using UniversityExamScheduler.Application.Dtos.StudentGroup.Respone;
 using UniversityExamScheduler.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class StudentGroupController(IStudentGroupService groupService, IMapper mapper) : ControllerBase
