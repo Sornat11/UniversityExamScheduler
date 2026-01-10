@@ -15,7 +15,7 @@ RUN rm -rf UniversityExamScheduler.Api/wwwroot || true \
  && mkdir -p UniversityExamScheduler.Api/wwwroot \
  && cp -r /src/frontend/dist/* UniversityExamScheduler.Api/wwwroot/
 
-RUN dotnet publish UniversityExamScheduler.Api/UniversityExamScheduler.Api.csproj -c Release -o /app/publish
+RUN dotnet publish UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj -c Release -o /app/publish
 
 # --- RUNTIME ---
 FROM mcr.microsoft.com/dotnet/aspnet:8.0

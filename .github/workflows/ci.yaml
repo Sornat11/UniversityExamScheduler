@@ -11,7 +11,7 @@ jobs:
 
     env:
       FRONTEND_DIR: frontend
-      BACKEND_CSPROJ: UniversityExamScheduler.Api/UniversityExamScheduler.Api.csproj
+      BACKEND_CSPROJ: UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj
       PUBLISH_DIR: publish
 
     steps:
