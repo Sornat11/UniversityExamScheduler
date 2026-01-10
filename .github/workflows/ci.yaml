@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      FRONTEND_DIR: frontend
+      BACKEND_CSPROJ: UniversityExamScheduler.Api/UniversityExamScheduler.Api.csproj
+      PUBLISH_DIR: publish
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------- FRONTEND ----------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ${{ env.FRONTEND_DIR }}/package-lock.json
+
+      - name: Frontend install
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm run build
+
+      - name: Copy dist -> backend wwwroot
+        run: |
+          rm -rf UniversityExamScheduler.Api/wwwroot || true
+          mkdir -p UniversityExamScheduler.Api/wwwroot
+          cp -r frontend/dist/* UniversityExamScheduler.Api/wwwroot/
+
+      # ---------- BACKEND ----------
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore ${{ env.BACKEND_CSPROJ }}
+
+      - name: Build
+        run: dotnet build ${{ env.BACKEND_CSPROJ }} -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ${{ env.BACKEND_CSPROJ }} -c Release -o ${{ env.PUBLISH_DIR }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ues-publish
+          path: ${{ env.PUBLISH_DIR }}
+          if-no-files-found: error
