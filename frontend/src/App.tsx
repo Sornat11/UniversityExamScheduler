@@ -11,6 +11,9 @@ import StarostaSubjectsPage from "./pages/student/StarostaSubjectsPage";
 import StarostaProposeTermPage from "./pages/student/StarostaProposeTermPage";
 import LecturerSubjectsPage from "./pages/lecturer/LecturerSubjectsPage";
 import LecturerProposeTermPage from "./pages/lecturer/LecturerProposeTermPage";
+import DeanOfficeSubjectsPage from "./pages/deanoffice/DeanOfficeSubjectsPage";
+import DeanOfficePanelPage from "./pages/deanoffice/DeanOfficePanelPage";
+import type {JSX} from "react";
 
 function Placeholder({ title }: Readonly<{ title: string }>) {
     return (
@@ -142,9 +145,6 @@ function LecturerApp() {
         </StudentShell>
     );
 }
-
-import DeanOfficeSubjectsPage from "./pages/deanoffice/DeanOfficeSubjectsPage";
-import DeanOfficePanelPage from "./pages/deanoffice/DeanOfficePanelPage";
 
 function DeanOfficeApp() {
     const { user, logout } = useAuth();

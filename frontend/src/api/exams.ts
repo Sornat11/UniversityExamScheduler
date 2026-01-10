@@ -1,8 +1,8 @@
 const tokenKey = "ues_token";
 
-function authHeaders() {
+function authHeaders(): HeadersInit | undefined {
     const token = localStorage.getItem(tokenKey);
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 
 export type ExamTermDto = {

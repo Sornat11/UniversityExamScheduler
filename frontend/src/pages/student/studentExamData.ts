@@ -136,7 +136,7 @@ export function normalizeTimeToSlot(raw?: string | null): string | undefined {
 
 function recomputeStatus(e: ExamEvent): ExamStatus {
     if ((e.approvedByStarosta && e.approvedByLecturer) || e.deanApproved) return "Zatwierdzony";
-    if (e.approvedByStarosta || e.approvedByLecturer) return "Cz?t?>ciowo zatwierdzony";
+    if (e.approvedByStarosta || e.approvedByLecturer) return "Częściowo zatwierdzony";
     return "Proponowany";
 }
 

@@ -1,4 +1,4 @@
-import { ReactNode, useMemo } from "react";
+import {type ReactNode, useMemo} from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { CalendarDays, BookOpen, PlusCircle, LogOut } from "lucide-react";
 

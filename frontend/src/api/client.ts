@@ -10,8 +10,4 @@ export function authHeaders() {
 
 export const api = createClient<paths>({
     baseUrl: "/api",
-    fetch: async (url, options) => {
-        const headers = { ...(options?.headers ?? {}), ...(authHeaders() ?? {}) };
-        return fetch(url, { ...options, headers });
-    },
 });
