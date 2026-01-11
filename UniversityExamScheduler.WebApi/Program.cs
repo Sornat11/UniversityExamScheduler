@@ -21,6 +21,7 @@ var issuer = jwtSection["Issuer"];
 var audience = jwtSection["Audience"];
 var key = jwtSection["Key"];
 var expiresMinutes = int.Parse(jwtSection["ExpiresMinutes"] ?? "120");
+var seedDemoData = builder.Configuration.GetValue("SeedDemoData", builder.Environment.IsDevelopment());
 
 if (string.IsNullOrWhiteSpace(key) || key.Length < 32)
 {
@@ -83,7 +84,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+if (seedDemoData)
 {
     await app.Services.SeedReferenceDataAsync();
 }

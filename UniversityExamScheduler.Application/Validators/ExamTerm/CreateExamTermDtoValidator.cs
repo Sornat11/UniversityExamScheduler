@@ -30,7 +30,5 @@ public class CreateExamTermDtoValidator : AbstractValidator<CreateExamTermDto>
         RuleFor(x => x.Status)
             .IsInEnum();
 
-        RuleFor(x => x.CreatedBy)
-            .NotEmpty();
     }
 }

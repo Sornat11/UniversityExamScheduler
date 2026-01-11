@@ -1,8 +1,8 @@
 const tokenKey = "ues_token";
 
-function authHeaders() {
+function authHeaders(): HeadersInit | undefined {
     const token = localStorage.getItem(tokenKey);
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 
 export type ExamTermDto = {
@@ -28,13 +28,13 @@ export type ExamDto = {
 
 export async function fetchExamTerms(courseId?: string): Promise<ExamTermDto[]> {
     const qs = courseId ? `?courseId=${encodeURIComponent(courseId)}` : "";
-    const res = await fetch(`/api/ExamTerm${qs}`, { headers: { ...authHeaders() } });
+    const res = await fetch(`/api/ExamTerm${qs}`, { headers: authHeaders() });
     if (!res.ok) throw new Error(`ExamTerm HTTP ${res.status}`);
     return res.json();
 }
 
 export async function fetchExams(): Promise<ExamDto[]> {
-    const res = await fetch("/api/Exam", { headers: { ...authHeaders() } });
+    const res = await fetch("/api/Exam", { headers: authHeaders() });
     if (!res.ok) throw new Error(`Exam HTTP ${res.status}`);
     return res.json();
 }

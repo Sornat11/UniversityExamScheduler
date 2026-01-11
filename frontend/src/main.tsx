@@ -1,16 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App";
+import { registerSW } from "virtual:pwa-register";
+import App from "./app/App";
+import { AppProviders } from "./app/providers/AppProviders";
 import "./index.css";
-import { AuthProvider } from "./auth/AuthContext";
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    registerSW({ immediate: true });
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-        <AuthProvider>
-            <BrowserRouter>
-                <App />
-            </BrowserRouter>
-        </AuthProvider>
+        <AppProviders>
+            <App />
+        </AppProviders>
     </React.StrictMode>
 );

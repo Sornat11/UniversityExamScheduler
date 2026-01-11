@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using UniversityExamScheduler.Application.Services;
 using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
@@ -14,10 +15,12 @@ namespace UniversityExamScheduler.WebApi.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _config;
+    private readonly IUserService _userService;
 
-    public AuthController(IConfiguration config)
+    public AuthController(IConfiguration config, IUserService userService)
     {
         _config = config;
+        _userService = userService;
     }
 
     public record LoginRequest(string Username, string Password);
@@ -38,7 +41,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public ActionResult<LoginResponse> Login([FromBody] LoginRequest req)
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest req, CancellationToken cancellationToken)
     {
         var username = (req.Username ?? string.Empty).Trim().ToLowerInvariant();
 
@@ -84,6 +87,12 @@ public class AuthController : ControllerBase
             new(ClaimTypes.Name, username),
             new(ClaimTypes.Role, role.ToString()),
         };
+
+        var userId = await ResolveUserIdAsync(username, cancellationToken);
+        if (userId.HasValue)
+        {
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));
+        }
 
         if (isStarosta)
         {
@@ -153,4 +162,25 @@ public class AuthController : ControllerBase
                 _ => null
             }
         );
+
+    private async Task<Guid?> ResolveUserIdAsync(string username, CancellationToken cancellationToken)
+    {
+        var email = username switch
+        {
+            "student" => "student@example.com",
+            "starosta" => "starosta@example.com",
+            "prowadzacy" => "prowadza@example.com",
+            "dziekanat" => "dziekanat@example.com",
+            "admin" => "admin@example.com",
+            _ => null
+        };
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var user = await _userService.GetByEmailAsync(email, cancellationToken);
+        return user?.Id;
+    }
 }

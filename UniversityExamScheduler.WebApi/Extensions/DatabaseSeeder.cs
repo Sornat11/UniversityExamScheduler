@@ -49,7 +49,17 @@ public static class DatabaseSeeder
                 isStarosta: false,
                 cancellationToken);
 
-            await EnsureUserAsync(
+            var student = await EnsureUserAsync(
+                context,
+                new Guid("bdb3e8f6-6402-4f7d-9a9c-27aaf6f8ff4d"),
+                "student@example.com",
+                "Marek",
+                "Zielinski",
+                Role.Student,
+                isStarosta: false,
+                cancellationToken);
+
+            var deanOffice = await EnsureUserAsync(
                 context,
                 new Guid("2b67ea8b-4855-4a7e-a3cb-0c6a8c1f76d9"),
                 "dziekanat@example.com",
@@ -80,10 +90,12 @@ public static class DatabaseSeeder
                 cancellationToken);
 
             await EnsureGroupMembershipAsync(context, group1.Id, starosta.Id, cancellationToken);
+            await EnsureGroupMembershipAsync(context, group1.Id, student.Id, cancellationToken);
 
             await EnsureRoomsAsync(context, cancellationToken);
             await EnsureExamSessionAsync(context, cancellationToken);
             await EnsureExamsAsync(context, group1.Id, lecturer.Id, lecturer2.Id, cancellationToken);
+            await EnsureExamTermsAsync(context, deanOffice.Id, cancellationToken);
 
             await context.SaveChangesAsync(cancellationToken);
         }
@@ -222,14 +234,14 @@ public static class DatabaseSeeder
                     Id = new Guid("aef2e30d-a5c3-4dc0-8b8a-5b3a2d9811b8"),
                     Name = "Matematyka",
                     GroupId = groupId,
-                    LecturerId = lecturerId
+                    LecturerId = lecturer2Id
                 },
                 new Exam
                 {
                     Id = new Guid("db34158a-02c1-4d9c-9685-e4782b0bc62c"),
                     Name = "Programowanie",
                     GroupId = groupId,
-                    LecturerId = lecturerId
+                    LecturerId = lecturer2Id
                 },
                 new Exam
                 {
@@ -237,6 +249,67 @@ public static class DatabaseSeeder
                     Name = "Algorytmy",
                     GroupId = groupId,
                     LecturerId = lecturer2Id
+                }
+            },
+            cancellationToken);
+    }
+
+    private static async Task EnsureExamTermsAsync(
+        ApplicationDbContext context,
+        Guid createdById,
+        CancellationToken cancellationToken)
+    {
+        if (await context.ExamTerms.AnyAsync(cancellationToken)) return;
+
+        var sessionId = new Guid("b36bc29b-933b-4cd0-8f4a-07f0703c2fa3");
+        var roomAId = new Guid("5d1c8b37-5e93-4f4c-9a4e-89c0a2d1048d");
+        var roomBId = new Guid("e9f9e5b0-9b8c-4e8c-9b1e-7a5c1af3f274");
+
+        var mathId = new Guid("aef2e30d-a5c3-4dc0-8b8a-5b3a2d9811b8");
+        var progId = new Guid("db34158a-02c1-4d9c-9685-e4782b0bc62c");
+        var algoId = new Guid("f182a2a7-8a49-49a9-9b37-8d29a2f92c80");
+
+        await context.ExamTerms.AddRangeAsync(
+            new[]
+            {
+                new ExamTerm
+                {
+                    Id = new Guid("f6c9d7b5-62ce-4a76-8f62-2d7ddc3b2e9b"),
+                    CourseId = mathId,
+                    SessionId = sessionId,
+                    RoomId = roomAId,
+                    Date = new DateOnly(2026, 1, 10),
+                    StartTime = new TimeOnly(9, 0),
+                    EndTime = new TimeOnly(11, 0),
+                    Type = ExamTermType.FirstAttempt,
+                    Status = ExamTermStatus.Approved,
+                    CreatedBy = createdById
+                },
+                new ExamTerm
+                {
+                    Id = new Guid("aa46f14c-0e74-4d4f-9d3c-8f93f31b4e50"),
+                    CourseId = progId,
+                    SessionId = sessionId,
+                    RoomId = roomBId,
+                    Date = new DateOnly(2026, 1, 15),
+                    StartTime = new TimeOnly(12, 0),
+                    EndTime = new TimeOnly(13, 30),
+                    Type = ExamTermType.FirstAttempt,
+                    Status = ExamTermStatus.ProposedByLecturer,
+                    CreatedBy = createdById
+                },
+                new ExamTerm
+                {
+                    Id = new Guid("5f1a9ab8-3321-4b6c-8a59-1a83c3f2d0cb"),
+                    CourseId = algoId,
+                    SessionId = sessionId,
+                    RoomId = roomAId,
+                    Date = new DateOnly(2026, 1, 20),
+                    StartTime = new TimeOnly(14, 0),
+                    EndTime = new TimeOnly(15, 30),
+                    Type = ExamTermType.FirstAttempt,
+                    Status = ExamTermStatus.ProposedByStudent,
+                    CreatedBy = createdById
                 }
             },
             cancellationToken);

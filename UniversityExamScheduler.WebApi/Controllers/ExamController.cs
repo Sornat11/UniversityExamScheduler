@@ -1,19 +1,21 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using UniversityExamScheduler.Application.Dtos.Exam.Request;
 using UniversityExamScheduler.Application.Dtos.Exam.Respone;
 using UniversityExamScheduler.Application.Services;
-using Microsoft.AspNetCore.Authorization;
 using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
-[Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class ExamController(IExamService examService, IMapper mapper) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> AddExam(CreateExamDto examDto, CancellationToken cancellationToken)
     {
         var created = await examService.AddAsync(examDto, cancellationToken);
@@ -22,23 +24,38 @@ public class ExamController(IExamService examService, IMapper mapper) : Controll
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var exam = await examService.GetByIdAsync(id, cancellationToken);
         if (exam is null) return NotFound();
+        if (User.IsInRole(nameof(Role.Lecturer)) && !IsOwnedByLecturer(exam.LecturerId))
+        {
+            return Forbid();
+        }
         var dto = mapper.Map<GetExamDto>(exam);
         return Ok(dto);
     }
 
     [HttpGet]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var exams = await examService.ListAsync(cancellationToken);
+        if (User.IsInRole(nameof(Role.Lecturer)))
+        {
+            if (!TryGetUserId(out var lecturerId))
+            {
+                return Forbid();
+            }
+            exams = exams.Where(e => e.LecturerId == lecturerId);
+        }
         var dtos = mapper.Map<IEnumerable<GetExamDto>>(exams);
         return Ok(dtos);
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> UpdateExam(Guid id, UpdateExamDto examDto, CancellationToken cancellationToken)
     {
         await examService.UpdateAsync(id, examDto, cancellationToken);
@@ -48,9 +65,22 @@ public class ExamController(IExamService examService, IMapper mapper) : Controll
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> DeleteExam(Guid id, CancellationToken cancellationToken)
     {
         await examService.RemoveAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    private bool TryGetUserId(out Guid userId)
+    {
+        userId = Guid.Empty;
+        var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(raw, out userId);
+    }
+
+    private bool IsOwnedByLecturer(Guid lecturerId)
+    {
+        return TryGetUserId(out var userId) && lecturerId == userId;
     }
 }

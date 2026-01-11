@@ -1,126 +1,121 @@
-# University Exam Scheduler – Database Schema Documentation
+﻿# University Exam Scheduler - Database Schema Documentation
 
 ## Konwencje
-- Nazwy tabel i kolumn: `snake_case` (zgodne z PostgreSQL)
-- Nazwy encji w C#: `PascalCase` (mapowanie przez EF Core)
+- Nazwy tabel i kolumn: `snake_case` (zgodne z PostgreSQL).
+- Nazwy encji w C#: `PascalCase` (mapowanie przez EF Core).
+- Klucze główne są typu UUID, jeśli nie podano inaczej.
 
 ---
 
-## 1. Użytkownicy i Role (IAM)
+## 1. Użytkownicy i role (IAM)
 
 **Tabela:** `users`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| id              | UUID, PK    | Identyfikator użytkownika                 |
-| external_id     | String      | Id z SSO/USOS                             |
-| email           | String      | Email                                     |
-| first_name      | String      | Imię                                      |
-| last_name       | String      | Nazwisko                                  |
-| role            | Enum/String | 'STUDENT', 'LECTURER', 'DEAN_OFFICE', 'ADMIN' |
-| is_active       | Boolean     | Czy aktywny                               |
+| Kolumna     | Typ         | Opis                                             |
+|-------------|-------------|--------------------------------------------------|
+| id          | UUID, PK    | Identyfikator użytkownika                        |
+| external_id | String      | Id z SSO/USOS (opcjonalnie)                      |
+| email       | String      | Email                                            |
+| first_name  | String      | Imię                                             |
+| last_name   | String      | Nazwisko                                         |
+| role        | Enum/String | `Student`, `Lecturer`, `DeanOffice`, `Admin`     |
+| is_starosta | Boolean     | Czy użytkownik pełni rolę starosty               |
+| is_active   | Boolean     | Czy aktywny                                      |
 
 ---
 
-## 2. Struktura Uczelni (Grupy i Starostowie)
+## 2. Struktura uczelni (grupy i członkostwa)
 
 **Tabela:** `student_groups`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| id              | UUID, PK    | Identyfikator grupy                       |
-| name            | String      | Nazwa grupy                               |
-| field_of_study  | String      | Kierunek                                  |
-| study_type      | Enum        | 'Stacjonarne', 'Niestacjonarne'           |
-| semester        | Int         | Semestr                                   |
-| starosta_id     | UUID, FK    | Starosta (FK do users.id)                 |
+| Kolumna        | Typ         | Opis                                    |
+|----------------|-------------|-----------------------------------------|
+| id             | UUID, PK    | Identyfikator grupy                     |
+| name           | String      | Nazwa grupy                             |
+| field_of_study | String      | Kierunek                                |
+| study_type     | Enum        | `Stacjonarne`, `Niestacjonarne`         |
+| semester       | Int         | Semestr                                 |
+| starosta_id    | UUID, FK    | Starosta (FK do users.id)               |
 
 **Tabela:** `group_members`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| group_id        | UUID, FK    | Grupa (FK do student_groups.id)           |
-| student_id      | UUID, FK    | Student (FK do users.id)                  |
+| Kolumna    | Typ      | Opis                                  |
+|------------|----------|---------------------------------------|
+| group_id   | UUID, FK | Grupa (FK do student_groups.id)       |
+| student_id | UUID, FK | Student (FK do users.id)              |
+
+**PK:** `(group_id, student_id)`
 
 ---
 
-## 3. Logistyka (Sale i Sesje)
+## 3. Logistyka (sale i sesje)
 
 **Tabela:** `rooms`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| id              | UUID, PK    | Identyfikator sali                        |
-| room_number     | String      | Numer sali                                |
-| capacity        | Int         | Pojemność                                 |
-| type            | Enum        | 'LECTURE', 'LAB', 'COMPUTER'              |
-| is_available    | Boolean     | Czy dostępna                              |
+| Kolumna      | Typ      | Opis                           |
+|--------------|----------|--------------------------------|
+| id           | UUID, PK | Identyfikator sali             |
+| room_number  | String   | Numer sali                     |
+| capacity     | Int      | Pojemność                      |
+| type         | Enum     | `Lecture`, `Lab`, `Computer`   |
+| is_available | Boolean  | Czy dostępna                   |
 
 **Tabela:** `exam_sessions`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| id              | UUID, PK    | Identyfikator sesji                       |
-| name            | String      | Nazwa sesji                               |
-| start_date      | Date        | Data rozpoczęcia                          |
-| end_date        | Date        | Data zakończenia                          |
-| is_active       | Boolean     | Czy aktywna                               |
+| Kolumna    | Typ      | Opis                     |
+|------------|----------|--------------------------|
+| id         | UUID, PK | Identyfikator sesji      |
+| name       | String   | Nazwa sesji              |
+| start_date | Date     | Data rozpoczęcia         |
+| end_date   | Date     | Data zakończenia         |
+| is_active  | Boolean  | Czy aktywna              |
 
 ---
 
-## 4. Przedmioty (Kursy)
+## 4. Przedmioty (kursy)
 
-**Tabela:** `courses`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| id              | UUID, PK    | Identyfikator kursu                       |
-| name            | String      | Nazwa kursu                               |
-| lecturer_id     | UUID, FK    | Prowadzący (FK do users.id)               |
-| group_id        | UUID, FK    | Grupa (FK do student_groups.id)           |
+**Tabela:** `courses` (`Exam`)
+| Kolumna     | Typ      | Opis                      |
+|-------------|----------|---------------------------|
+| id          | UUID, PK | Identyfikator kursu       |
+| name        | String   | Nazwa kursu               |
+| lecturer_id | UUID, FK | Prowadzący (users.id)     |
+| group_id    | UUID, FK | Grupa (student_groups.id) |
 
 ---
 
-## 5. Egzaminy i Terminy
+## 5. Egzaminy i terminy
 
 **Tabela:** `exam_terms`
-| Kolumna           | Typ         | Opis                                      |
-|-------------------|-------------|-------------------------------------------|
-| id                | UUID, PK    | Identyfikator terminu                     |
-| course_id         | UUID, FK    | Kurs (FK do courses.id)                   |
-| session_id        | UUID, FK    | Sesja (FK do exam_sessions.id)            |
-| room_id           | UUID, FK    | Sala (FK do rooms.id, Nullable)           |
-| date              | Date        | Data egzaminu                             |
-| start_time        | Time        | Godzina rozpoczęcia                       |
-| end_time          | Time        | Godzina zakończenia                       |
-| type              | Enum        | 'FIRST_ATTEMPT', 'RETAKE', 'COMMISSION'   |
-| status            | Enum        | Status egzaminu (patrz niżej)             |
-| created_by        | UUID, FK    | Kto utworzył propozycję                   |
-| rejection_reason  | String      | Powód odrzucenia (Nullable)               |
-
-**Enum:** `ExamTermStatus`
-- DRAFT
-- PROPOSED_BY_LECTURER
-- PROPOSED_BY_STUDENT
-- CONFLICT
-- APPROVED
-- FINALIZED
-- REJECTED
+| Kolumna          | Typ      | Opis                                                                 |
+|------------------|----------|----------------------------------------------------------------------|
+| id               | UUID, PK | Identyfikator terminu                                                |
+| course_id        | UUID, FK | Kurs (courses.id)                                                    |
+| session_id       | UUID, FK | Sesja (exam_sessions.id)                                             |
+| room_id          | UUID, FK | Sala (rooms.id, nullable)                                            |
+| date             | Date     | Data egzaminu                                                        |
+| start_time       | Time     | Godzina rozpoczęcia                                                  |
+| end_time         | Time     | Godzina zakończenia                                                  |
+| type             | Enum     | `FirstAttempt`, `Retake`, `Commission`                               |
+| status           | Enum     | `Draft`, `ProposedByLecturer`, `ProposedByStudent`, `Conflict`, `Approved`, `Finalized`, `Rejected` |
+| created_by       | UUID, FK | Kto utworzył propozycję (users.id)                                   |
+| rejection_reason | String   | Powód odrzucenia (opcjonalnie)                                       |
 
 ---
 
-## 6. Historia Zmian
+## 6. Historia zmian
 
 **Tabela:** `exam_term_history`
-| Kolumna         | Typ         | Opis                                      |
-|-----------------|-------------|-------------------------------------------|
-| id              | BigInt, PK  | Identyfikator historii                    |
-| exam_term_id    | UUID, FK    | Termin egzaminu (FK do exam_terms.id)     |
-| changed_by      | UUID, FK    | Kto zmienił                               |
-| changed_at      | Timestamp   | Kiedy zmieniono                           |
-| previous_status | Enum        | Poprzedni status                          |
-| new_status      | Enum        | Nowy status                               |
-| previous_date   | DateTime    | Poprzednia data (Nullable)                |
-| new_date        | DateTime    | Nowa data (Nullable)                      |
-| comment         | String      | Komentarz                                 |
+| Kolumna         | Typ       | Opis                                  |
+|-----------------|-----------|---------------------------------------|
+| id              | UUID, PK  | Identyfikator historii                |
+| exam_term_id    | UUID, FK  | Termin egzaminu (exam_terms.id)       |
+| changed_by      | UUID, FK  | Kto zmienił (users.id)                |
+| changed_at      | Timestamp | Kiedy zmieniono                       |
+| previous_status | Enum      | Poprzedni status                      |
+| new_status      | Enum      | Nowy status                           |
+| previous_date   | DateTime  | Poprzednia data (opcjonalnie)         |
+| new_date        | DateTime  | Nowa data (opcjonalnie)               |
+| comment         | String    | Komentarz (opcjonalnie)               |
 
 ---
 
-## Kluczowe Relacje i Logika
+## Kluczowe relacje i logika
 - Jeden egzamin dziennie na grupę: sprawdzaj liczbę terminów w danym dniu dla grupy.
 - Starosta widzi tylko egzaminy swojej grupy.
 - Workflow akceptacji: statusy sterują widocznością i uprawnieniami.
@@ -138,7 +133,7 @@ JOIN courses c ON t.course_id = c.id
 WHERE c.group_id = [ID_GRUPY] AND t.date = [DATA];
 ```
 
-**Widok egzaminów dla Starosty:**
+**Widok egzaminów dla starosty:**
 ```sql
 SELECT *
 FROM exam_terms t
@@ -163,5 +158,5 @@ WHERE t.date < s.start_date OR t.date > s.end_date;
 
 ---
 
-**Autor projektu: Sornat11**
-**Data: 2025-12-08**
+**Autor:** Sornat11
+**Ostatnia aktualizacja:** 2026-01-11

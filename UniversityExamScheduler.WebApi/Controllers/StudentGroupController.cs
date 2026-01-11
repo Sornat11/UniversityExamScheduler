@@ -8,12 +8,13 @@ using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
-[Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class StudentGroupController(IStudentGroupService groupService, IMapper mapper) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> AddGroup(CreateStudentGroupDto groupDto, CancellationToken cancellationToken)
     {
         var created = await groupService.AddAsync(groupDto, cancellationToken);
@@ -22,6 +23,7 @@ public class StudentGroupController(IStudentGroupService groupService, IMapper m
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var group = await groupService.GetByIdAsync(id, cancellationToken);
@@ -31,6 +33,7 @@ public class StudentGroupController(IStudentGroupService groupService, IMapper m
     }
 
     [HttpGet]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
     public async Task<IActionResult> Get([FromQuery] string? name, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(name))
@@ -47,6 +50,7 @@ public class StudentGroupController(IStudentGroupService groupService, IMapper m
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> UpdateGroup(Guid id, UpdateStudentGroupDto groupDto, CancellationToken cancellationToken)
     {
         await groupService.UpdateAsync(id, groupDto, cancellationToken);
@@ -56,6 +60,7 @@ public class StudentGroupController(IStudentGroupService groupService, IMapper m
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> DeleteGroup(Guid id, CancellationToken cancellationToken)
     {
         await groupService.RemoveAsync(id, cancellationToken);
