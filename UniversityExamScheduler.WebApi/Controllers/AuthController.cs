@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using UniversityExamScheduler.Application.Services;
+using UniversityExamScheduler.Domain.Entities;
 using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
@@ -45,18 +46,46 @@ public class AuthController : ControllerBase
     {
         var username = (req.Username ?? string.Empty).Trim().ToLowerInvariant();
 
-        var (role, isStarosta) = username switch
+        Role role;
+        bool isStarosta;
+
+        switch (username)
         {
-            "student" => (Role.Student, false),
-            "starosta" => (Role.Student, true),
-            "prowadzacy" => (Role.Lecturer, false),
-            "dziekanat" => (Role.DeanOffice, false),
-            "admin" => (Role.Admin, false),
-            _ => (Role.Student, false)
-        };
+            case "student":
+                role = Role.Student;
+                isStarosta = false;
+                break;
+            case "starosta":
+                role = Role.Student;
+                isStarosta = true;
+                break;
+            case "prowadzacy":
+                role = Role.Lecturer;
+                isStarosta = false;
+                break;
+            case "dziekanat":
+                role = Role.DeanOffice;
+                isStarosta = false;
+                break;
+            case "admin":
+                role = Role.Admin;
+                isStarosta = false;
+                break;
+            default:
+                role = Role.Student;
+                isStarosta = false;
+                break;
+        }
 
         if (username is not ("student" or "starosta" or "prowadzacy" or "dziekanat" or "admin"))
             return Unauthorized(new { message = "Unknown demo user. Allowed: student/starosta/prowadzacy/dziekanat/admin" });
+
+        var dbUser = await ResolveDemoUserAsync(username, cancellationToken);
+        if (dbUser is not null)
+        {
+            role = dbUser.Role;
+            isStarosta = dbUser.IsStarosta;
+        }
 
         var jwt = _config.GetSection("Jwt");
         var issuer = jwt["Issuer"];
@@ -88,10 +117,9 @@ public class AuthController : ControllerBase
             new(ClaimTypes.Role, role.ToString()),
         };
 
-        var userId = await ResolveUserIdAsync(username, cancellationToken);
-        if (userId.HasValue)
+        if (dbUser is not null)
         {
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id.ToString()));
         }
 
         if (isStarosta)
@@ -113,7 +141,7 @@ public class AuthController : ControllerBase
         );
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-        var userDto = BuildUser(username, role, isStarosta);
+        var userDto = BuildUser(username, role, isStarosta, dbUser);
 
         return Ok(new LoginResponse(
             AccessToken: tokenString,
@@ -124,7 +152,7 @@ public class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public ActionResult<UserDto> Me()
+    public async Task<ActionResult<UserDto>> Me(CancellationToken cancellationToken)
     {
         var username = User.Identity?.Name;
         var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -136,15 +164,27 @@ public class AuthController : ControllerBase
         var isStarosta = User.HasClaim(c => c.Type == "is_starosta" && c.Value == "true");
         var role = Enum.TryParse<Role>(roleClaim, out var parsedRole) ? parsedRole : Role.Student;
 
-        return Ok(BuildUser(username, role, isStarosta));
+        User? dbUser = null;
+        var rawId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(rawId, out var userId))
+        {
+            dbUser = await _userService.GetByIdAsync(userId, cancellationToken);
+            if (dbUser is not null)
+            {
+                role = dbUser.Role;
+                isStarosta = dbUser.IsStarosta;
+            }
+        }
+
+        return Ok(BuildUser(username, role, isStarosta, dbUser));
     }
 
-    private static UserDto BuildUser(string username, Role role, bool isStarosta) =>
+    private static UserDto BuildUser(string username, Role role, bool isStarosta, User? dbUser) =>
         new(
             Username: username,
             Role: role,
             IsStarosta: isStarosta,
-            FirstName: username switch
+            FirstName: dbUser?.FirstName ?? username switch
             {
                 "student" => "Jan",
                 "starosta" => "Jan",
@@ -153,7 +193,7 @@ public class AuthController : ControllerBase
                 "admin" => "Admin",
                 _ => null
             },
-            LastName: username switch
+            LastName: dbUser?.LastName ?? username switch
             {
                 "student" => "Kowalski",
                 "starosta" => "Kowalski",
@@ -163,9 +203,8 @@ public class AuthController : ControllerBase
             }
         );
 
-    private async Task<Guid?> ResolveUserIdAsync(string username, CancellationToken cancellationToken)
-    {
-        var email = username switch
+    private static string? ResolveDemoEmail(string username) =>
+        username switch
         {
             "student" => "student@example.com",
             "starosta" => "starosta@example.com",
@@ -175,12 +214,15 @@ public class AuthController : ControllerBase
             _ => null
         };
 
+    private Task<User?> ResolveDemoUserAsync(string username, CancellationToken cancellationToken)
+    {
+        var email = ResolveDemoEmail(username);
+
         if (string.IsNullOrWhiteSpace(email))
         {
-            return null;
+            return Task.FromResult<User?>(null);
         }
 
-        var user = await _userService.GetByEmailAsync(email, cancellationToken);
-        return user?.Id;
+        return _userService.GetByEmailAsync(email, cancellationToken);
     }
 }

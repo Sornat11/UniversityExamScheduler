@@ -6,4 +6,5 @@ namespace UniversityExamScheduler.Application.Contracts;
 public interface IStudentGroupRepository : IBaseRepository<StudentGroup>
 {
     Task<StudentGroup?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
+    Task<bool> IsMemberAsync(Guid studentId, Guid groupId, CancellationToken cancellationToken = default);
 }

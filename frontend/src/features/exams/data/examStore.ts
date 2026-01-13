@@ -1,17 +1,28 @@
-﻿/* src/features/exams/data/examStore.ts
-   WspĂłlne ĹşrĂłdĹ‚o danych (MOCK) dla:
+/* src/features/exams/data/examStore.ts
+   Wspolne zrodlo danych (API) dla:
    - kalendarza (schedule)
-   - list przedmiotĂłw (subjects)
+   - list przedmiotow (subjects)
    - panelu dziekanatu (panel)
    Bez auth po stronie frontu.
 */
+
+import {
+    approveExamTermByLecturer,
+    approveExamTermByStarosta,
+    createExamTerm,
+    finalApproveExamTerm,
+    finalRejectExamTerm,
+    fetchExamEvents,
+    rejectExamTermByStarosta,
+} from "../../../api/exams";
+import { fetchExamSessions, type ExamSessionDto } from "../../../api/admin";
 
 export type ExamStatus = "Proponowany" | "Czesciowo zatwierdzony" | "Zatwierdzony";
 
 export type ExamEvent = {
     id: string;
 
-    // gĹ‚Ăłwne pola
+    // glowne pola
     title: string;
     dateISO: string; // YYYY-MM-DD
     time?: string; // HH:mm
@@ -25,9 +36,9 @@ export type ExamEvent = {
     groupName?: string;
     studentUsernames?: string[];
     lecturerUsername?: string;
-    lecturer?: string; // "Dr Piotr WiĹ›niewski"
+    lecturer?: string; // "Dr Piotr Wisniewski"
 
-    // workflow zatwierdzeĹ„
+    // workflow zatwierdzen
     approvedByStarosta?: boolean;
     approvedByLecturer?: boolean;
     deanApproved?: boolean;
@@ -40,7 +51,7 @@ export type ExamEvent = {
 
 export type SessionPeriod = {
     startISO: string; // YYYY-MM-DD
-    endISO: string;   // YYYY-MM-DD
+    endISO: string; // YYYY-MM-DD
 };
 
 export type ProposeExamTermInput = {
@@ -48,6 +59,13 @@ export type ProposeExamTermInput = {
     dateISO: string;
     time?: string;
     room?: string;
+
+    courseId?: string;
+    sessionId?: string;
+    roomId?: string | null;
+    termType?: "FirstAttempt" | "Retake" | "Commission";
+    startTime?: string;
+    endTime?: string;
 
     fieldOfStudy?: string;
     studyType?: string;
@@ -58,20 +76,15 @@ export type ProposeExamTermInput = {
     lecturerUsername?: string;
     lecturer?: string;
 
-    // opcjonalnie â€“ kto stworzyĹ‚ propozycjÄ™ (nie jest wymagane do dziaĹ‚ania)
+    // opcjonalnie kto stworzyl propozycje (nie jest wymagane do dzialania)
     proposer?: "Student" | "Starosta" | "Lecturer" | "DeanOffice";
 };
-
-// -----------------------------
-// LocalStorage keys
-// -----------------------------
-const LS_EXAMS_KEY = "ues_exams_v1";
-const LS_SESSION_KEY = "ues_session_v1";
 
 // -----------------------------
 // In-memory store + listeners
 // -----------------------------
 let isLoaded = false;
+let loadedToken: string | null = null;
 let exams: ExamEvent[] = [];
 const listeners = new Set<() => void>();
 
@@ -79,60 +92,16 @@ let session: SessionPeriod | null = null;
 const sessionListeners = new Set<() => void>();
 
 function notify() {
-    persist();
     for (const l of listeners) l();
 }
 
 function notifySession() {
-    persistSession();
     for (const l of sessionListeners) l();
-}
-
-function persist() {
-    try {
-        localStorage.setItem(LS_EXAMS_KEY, JSON.stringify(exams));
-    } catch {
-        // ignore
-    }
-}
-
-function persistSession() {
-    try {
-        localStorage.setItem(LS_SESSION_KEY, JSON.stringify(session));
-    } catch {
-        // ignore
-    }
-}
-
-function safeParse<T>(raw: string | null): T | null {
-    if (!raw) return null;
-    try {
-        return JSON.parse(raw) as T;
-    } catch {
-        return null;
-    }
-}
-
-function hasVisibilityMetadata(items: ExamEvent[]): boolean {
-    return items.some(
-        (e) =>
-            (Array.isArray(e.studentUsernames) && e.studentUsernames.length > 0) ||
-            Boolean(e.lecturerUsername) ||
-            Boolean(e.lecturer)
-    );
-}
-
-function nowISO() {
-    return new Date().toISOString();
-}
-
-function genId() {
-    // wystarczajÄ…ce do mockĂłw
-    return "ex_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
 }
 
 const MIN_TIME_MINUTES = 8 * 60;
 const MAX_TIME_MINUTES = 20 * 60;
+const DEFAULT_TERM_MINUTES = 90;
 
 export function normalizeTimeToSlot(raw?: string | null): string | undefined {
     if (!raw) return undefined;
@@ -151,9 +120,34 @@ export function normalizeTimeToSlot(raw?: string | null): string | undefined {
     return `${hh}:${mm}`;
 }
 
+function toApiTime(raw?: string | null): string | null {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(trimmed)) {
+        const [h, m, s] = trimmed.split(":");
+        return `${h.padStart(2, "0")}:${m.padStart(2, "0")}:${s.padStart(2, "0")}`;
+    }
+    const normalized = normalizeTimeToSlot(trimmed);
+    return normalized ? `${normalized}:00` : null;
+}
+
+function addMinutesToTime(start: string, minutes: number): string {
+    const [h, m] = start.split(":").map((v) => Number(v));
+    const total = h * 60 + m + minutes;
+    const hh = Math.floor(total / 60) % 24;
+    const mm = total % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
 function recomputeStatus(e: ExamEvent): ExamStatus {
     if ((e.approvedByStarosta && e.approvedByLecturer) || e.deanApproved) return "Zatwierdzony";
     if (e.approvedByStarosta || e.approvedByLecturer) return "Czesciowo zatwierdzony";
+    return "Proponowany";
+}
+
+function normalizeStatus(raw?: string | null): ExamStatus {
+    if (raw === "Zatwierdzony") return "Zatwierdzony";
+    if (raw === "Czesciowo zatwierdzony") return "Czesciowo zatwierdzony";
     return "Proponowany";
 }
 
@@ -162,187 +156,98 @@ function normalizeExam(e: ExamEvent): ExamEvent {
     const approvedByLecturer = Boolean(e.approvedByLecturer);
     const deanApproved = Boolean(e.deanApproved);
     const normalizedTime = normalizeTimeToSlot(e.time);
+    const hasWorkflowFlags =
+        typeof e.approvedByStarosta !== "undefined" ||
+        typeof e.approvedByLecturer !== "undefined" ||
+        typeof e.deanApproved !== "undefined";
+    const status = hasWorkflowFlags
+        ? recomputeStatus({ ...e, approvedByStarosta, approvedByLecturer, deanApproved })
+        : normalizeStatus(e.status);
 
-    const normalized: ExamEvent = {
+    return {
         ...e,
         approvedByStarosta,
         approvedByLecturer,
         deanApproved,
         time: normalizedTime,
-        status: recomputeStatus({ ...e, approvedByStarosta, approvedByLecturer, deanApproved }),
+        status,
     };
+}
 
-    return normalized;
+function selectActiveSession(sessions: ExamSessionDto[]): SessionPeriod | null {
+    if (!sessions || sessions.length === 0) return null;
+    const active =
+        sessions.filter((s) => s.isActive).sort((a, b) => b.startDate.localeCompare(a.startDate))[0] ??
+        sessions[0];
+    if (!active) return null;
+    return { startISO: active.startDate, endISO: active.endDate };
+}
+
+async function loadApiSession(): Promise<void> {
+    const sessions = await fetchExamSessions();
+    session = selectActiveSession(sessions ?? []);
+    notifySession();
+}
+
+async function loadApiEvents(token: string): Promise<void> {
+    const apiEvents = await fetchExamEvents();
+    exams = apiEvents.map((e) =>
+        normalizeExam({
+            ...e,
+            status: normalizeStatus(e.status),
+        })
+    );
+    loadedToken = token;
+    notify();
+}
+
+async function refreshApiEvents() {
+    const token = loadedToken ?? localStorage.getItem("ues_token");
+    if (!token) throw new Error("Brak autoryzacji.");
+    await loadApiEvents(token);
+    try {
+        await loadApiSession();
+    } catch {
+        session = null;
+        notifySession();
+    }
+    isLoaded = true;
 }
 
 // -----------------------------
-// Default mocks (zgodne z figmÄ…)
-// -----------------------------
-function defaultMockExams(): ExamEvent[] {
-    const year = new Date().getFullYear();
-    const base = {
-        fieldOfStudy: "Informatyka",
-        studyType: "Stacjonarne",
-        year: "3",
-        studentUsernames: ["student", "starosta"],
-    };
-
-    return [
-        // Zatwierdzone (finalnie przez dziekanat)
-        normalizeExam({
-            id: "ex_math_1",
-            title: "Matematyka",
-            lecturer: "Dr Jan Kowalczyk",
-            lecturerUsername: "other_lecturer",
-            dateISO: `${year}-01-20`,
-            time: "10:00",
-            room: "A-101",
-            ...base,
-            approvedByStarosta: true,
-            approvedByLecturer: true,
-            deanApproved: true,
-            status: "Zatwierdzony",
-            createdAtISO: `${year}-01-01T10:00:00.000Z`,
-        }),
-        normalizeExam({
-            id: "ex_networks_1",
-            title: "Sieci komputerowe",
-            lecturer: "Dr Tomasz Nowicki",
-            lecturerUsername: "other_lecturer",
-            dateISO: `${year}-01-28`,
-            time: "11:00",
-            room: "A-102",
-            ...base,
-            approvedByStarosta: true,
-            approvedByLecturer: true,
-            deanApproved: true,
-            status: "Zatwierdzony",
-            createdAtISO: `${year}-01-02T10:00:00.000Z`,
-        }),
-
-        // CzÄ™Ĺ›ciowo zatwierdzone
-        normalizeExam({
-            id: "ex_prog_1",
-            title: "Programowanie",
-            lecturer: "Dr Piotr WiĹ›niewski",
-            lecturerUsername: "other_lecturer",
-            dateISO: `${year}-01-22`,
-            time: "14:00",
-            room: "B-205",
-            ...base,
-            approvedByLecturer: true,
-            approvedByStarosta: false,
-            deanApproved: false,
-            status: "Czesciowo zatwierdzony",
-            createdAtISO: `${year}-01-03T10:00:00.000Z`,
-        }),
-
-        // Proponowane
-        normalizeExam({
-            id: "ex_db_1",
-            title: "Bazy danych",
-            lecturer: "Dr Anna Lewandowska",
-            lecturerUsername: "other_lecturer",
-            dateISO: `${year}-01-25`,
-            time: "09:00",
-            room: "C-301",
-            ...base,
-            approvedByStarosta: false,
-            approvedByLecturer: false,
-            deanApproved: false,
-            status: "Proponowany",
-            createdAtISO: `${year}-01-04T10:00:00.000Z`,
-        }),
-
-        // Inne kierunki / typy (ĹĽeby filtry wyglÄ…daĹ‚y sensownie)
-        normalizeExam({
-            id: "ex_algo_1",
-            title: "Algorytmy",
-            lecturer: "Dr Katarzyna Wojciechowska",
-            lecturerUsername: "other_lecturer",
-            dateISO: `${year}-01-30`,
-            time: "16:00",
-            room: "D-101",
-            fieldOfStudy: "Informatyka",
-            studyType: "Niestacjonarne",
-            year: "2",
-            approvedByStarosta: false,
-            approvedByLecturer: false,
-            deanApproved: false,
-            status: "Proponowany",
-            createdAtISO: `${year}-01-05T10:00:00.000Z`,
-        }),
-
-        // Extra proposal inside the active session.
-        normalizeExam({
-            id: "ex_math_2026",
-            title: "Matematyka",
-            lecturer: "Dr Piotr WiĹ›niewski",
-            lecturerUsername: "other_lecturer",
-            dateISO: `${year}-02-05`,
-            time: "16:15",
-            room: "A-100",
-            ...base,
-            approvedByStarosta: false,
-            approvedByLecturer: false,
-            deanApproved: false,
-            status: "Proponowany",
-            createdAtISO: `${year}-01-06T10:00:00.000Z`,
-        }),
-    ];
-}
-
-function defaultMockSession(): SessionPeriod {
-    const year = new Date().getFullYear();
-    return { startISO: `${year}-01-15`, endISO: `${year}-02-15` };
-}
-
-// -----------------------------
-// Public API (uĹĽywane przez strony)
+// Public API (uzywane przez strony)
 // -----------------------------
 
-/** Udaje â€śfetchâ€ť â€“ Ĺ‚aduje dane z localStorage albo z mockĂłw */
+/** Laduje dane egzaminow z backendu. */
 export async function ensureExamDataLoaded(): Promise<void> {
-    if (isLoaded) return;
+    const token = localStorage.getItem("ues_token");
+    if (!token) {
+        exams = [];
+        session = null;
+        loadedToken = null;
+        isLoaded = false;
+        notify();
+        notifySession();
+        throw new Error("Brak autoryzacji.");
+    }
 
-    // symulacja opĂłĹşnienia (ĹĽeby UI miaĹ‚o â€śLoadingâ€¦â€ť jak w realu)
+    if (isLoaded && loadedToken === token) return;
+
+    // symulacja opoznienia (zeby UI mialo "Loading" jak w realu)
     await new Promise((r) => setTimeout(r, 120));
 
-    let stored: ExamEvent[] | null = null;
-    let storedSession: SessionPeriod | null = null;
-
+    await loadApiEvents(token);
     try {
-        stored = safeParse<ExamEvent[]>(localStorage.getItem(LS_EXAMS_KEY));
+        await loadApiSession();
     } catch {
-        stored = null;
+        session = null;
+        notifySession();
     }
-
-    try {
-        storedSession = safeParse<SessionPeriod>(localStorage.getItem(LS_SESSION_KEY));
-    } catch {
-        storedSession = null;
-    }
-
-    if (stored && Array.isArray(stored) && stored.length > 0 && hasVisibilityMetadata(stored)) {
-        exams = stored.map(normalizeExam);
-    } else {
-        exams = defaultMockExams();
-    }
-
-    const fallbackSession = defaultMockSession();
-    if (storedSession) {
-        const storedEnd = new Date(`${storedSession.endISO}T23:59:59`);
-        const storedValid = !Number.isNaN(storedEnd.getTime());
-        session = !storedValid || storedEnd < new Date() ? fallbackSession : storedSession;
-    } else {
-        session = fallbackSession;
-    }
-    notifySession();
 
     isLoaded = true;
 }
 
-/** Snapshot â€“ nie mutuj tej tablicy w miejscu */
+/** Snapshot - nie mutuj tej tablicy w miejscu */
 export function getExamDataSnapshot(): ExamEvent[] {
     return exams.slice();
 }
@@ -366,10 +271,6 @@ function normalizeRole(role: unknown): AppRole | null {
 
 function normalizeUsername(username?: string) {
     return String(username ?? "").trim().toLowerCase();
-}
-
-function normalizeTitle(title: string) {
-    return title.trim().toLowerCase();
 }
 
 export function getVisibleExamEvents(
@@ -416,21 +317,7 @@ export function getVisibleExamEvents(
     );
 }
 
-function getLecturerSubjectTitles(username: string): Set<string> {
-    const normalized = normalizeUsername(username);
-    if (!normalized) return new Set();
-
-    const titles = new Set<string>();
-    for (const e of exams) {
-        if (!e.lecturerUsername) continue;
-        if (normalizeUsername(e.lecturerUsername) !== normalized) continue;
-        const title = normalizeTitle(e.title);
-        if (title) titles.add(title);
-    }
-    return titles;
-}
-
-/** Alias dla starych importĂłw */
+/** Alias dla starych importow */
 export const getStudentExamData = getExamDataSnapshot;
 
 export function subscribeExamData(fn: () => void): () => void {
@@ -460,117 +347,60 @@ export function setSessionPeriod(startISO: string, endISO: string) {
 // -----------------------------
 
 /** Dodanie propozycji terminu (starosta/Prowadzacy) */
-export function proposeExamTerm(input: ProposeExamTermInput): ExamEvent {
-    if (input.proposer === "Lecturer") {
-        const lecturerUsername = normalizeUsername(input.lecturerUsername);
-        if (!lecturerUsername) {
-            throw new Error("Brak identyfikatora prowadzacego.");
-        }
-
-        const allowedSubjects = getLecturerSubjectTitles(lecturerUsername);
-        if (allowedSubjects.size === 0) {
-            throw new Error("Brak przypisanych przedmiotow dla prowadzacego.");
-        }
-
-        const normalizedTitle = normalizeTitle(input.title);
-        if (!allowedSubjects.has(normalizedTitle)) {
-            throw new Error("Mozesz proponowac termin tylko dla swoich przedmiotow.");
-        }
+export async function proposeExamTerm(input: ProposeExamTermInput): Promise<void> {
+    const courseId = input.courseId;
+    const sessionId = input.sessionId;
+    const startTime = toApiTime(input.startTime ?? input.time);
+    if (!courseId || !sessionId || !startTime) {
+        throw new Error("Brak wymaganych danych do utworzenia terminu.");
     }
 
-    if (session) {
-        const d = new Date(input.dateISO + "T00:00:00");
-        const start = new Date(session.startISO + "T00:00:00");
-        const end = new Date(session.endISO + "T00:00:00");
-        if (d < start || d > end) {
-            throw new Error("Termin musi mieĹ›ciÄ‡ siÄ™ w aktywnej sesji egzaminacyjnej.");
-        }
+    const startSlot = startTime.slice(0, 5);
+    const endTime = toApiTime(input.endTime ?? addMinutesToTime(startSlot, DEFAULT_TERM_MINUTES));
+    if (!endTime) {
+        throw new Error("Brak godziny zakonczenia.");
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const proposed = new Date(input.dateISO + "T00:00:00");
-    if (proposed < today) {
-        throw new Error("Nie moĹĽna proponowaÄ‡ terminu z datÄ… wstecznÄ….");
-    }
-
-    const e: ExamEvent = normalizeExam({
-        id: genId(),
-        title: input.title.trim(),
-        dateISO: input.dateISO,
-        time: normalizeTimeToSlot(input.time),
-        room: input.room,
-        fieldOfStudy: input.fieldOfStudy,
-        studyType: input.studyType,
-        year: input.year,
-        groupId: input.groupId,
-        groupName: input.groupName,
-        lecturer: input.lecturer,
-        studentUsernames: input.studentUsernames,
-        lecturerUsername: input.lecturerUsername,
-
-        approvedByStarosta: false,
-        approvedByLecturer: false,
-        deanApproved: false,
-        status: "Proponowany",
-        createdAtISO: nowISO(),
+    await createExamTerm({
+        courseId,
+        sessionId,
+        roomId: input.roomId ?? null,
+        date: input.dateISO,
+        startTime,
+        endTime,
+        type: input.termType ?? "FirstAttempt",
     });
 
-    exams = [e, ...exams];
-    notify();
-    return e;
+    await refreshApiEvents();
 }
 
-/** OgĂłlny update eventu (gdy chcesz coĹ› podmieniÄ‡ bez robienia osobnych funkcji) */
-export function updateExam(id: string, patch: Partial<ExamEvent>) {
-    exams = exams.map((e) => (e.id === id ? normalizeExam({ ...e, ...patch }) : e));
-    notify();
+/** Starosta akceptuje propozycje */
+export async function approveByStarosta(id: string): Promise<void> {
+    await approveExamTermByStarosta(id);
+    await refreshApiEvents();
 }
 
-/** Starosta akceptuje propozycjÄ™ */
-export function approveByStarosta(id: string) {
-    exams = exams.map((e) => {
-        if (e.id !== id) return e;
-        const next = normalizeExam({ ...e, approvedByStarosta: true });
-        return next;
-    });
-    notify();
-}
-
-/** Prowadzacy akceptuje propozycjÄ™ */
-export function approveByLecturer(id: string) {
-    exams = exams.map((e) => {
-        if (e.id !== id) return e;
-        const next = normalizeExam({ ...e, approvedByLecturer: true });
-        return next;
-    });
-    notify();
+/** Prowadzacy akceptuje propozycje */
+export async function approveByLecturer(id: string): Promise<void> {
+    await approveExamTermByLecturer(id);
+    await refreshApiEvents();
 }
 
 /** Dziekanat finalnie zatwierdza (wtedy status zawsze Zatwierdzony) */
-export function deanFinalApprove(id: string) {
-    exams = exams.map((e) => {
-        if (e.id !== id) return e;
-        const next = normalizeExam({ ...e, deanApproved: true });
-        return next;
-    });
-    notify();
+export async function deanFinalApprove(id: string): Promise<void> {
+    await finalApproveExamTerm(id);
+    await refreshApiEvents();
 }
 
-/** Dziekanat finalnie odrzuca â€“ w mockach usuwamy z listy */
-export function deanFinalReject(id: string) {
-    exams = exams.filter((e) => e.id !== id);
-    notify();
+/** Dziekanat finalnie odrzuca */
+export async function deanFinalReject(id: string): Promise<void> {
+    await finalRejectExamTerm(id);
+    await refreshApiEvents();
 }
 
-/** Reset do mockĂłw (przydatne w dev) */
-export function resetToMocks() {
-    exams = defaultMockExams();
-    session = defaultMockSession();
-    persist();
-    persistSession();
-    notify();
-    notifySession();
+export async function starostaReject(id: string): Promise<void> {
+    await rejectExamTermByStarosta(id);
+    await refreshApiEvents();
 }
 
 // -----------------------------
@@ -594,7 +424,13 @@ export function exportExamDataToCSVString(rows?: ExamEvent[]): string {
         "DziekanatOK",
     ];
 
-    const escape = (s: string) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const escape = (value: string) => {
+        const s = String(value ?? "");
+        if (/[\",\\n\\r]/.test(s)) {
+            return `"${s.replace(/\"/g, "\"\"")}"`;
+        }
+        return s;
+    };
 
     const lines = data.map((e) =>
         [
@@ -633,15 +469,8 @@ export function downloadExamCSV(filename = "egzaminy.csv", rows?: ExamEvent[]) {
     URL.revokeObjectURL(url);
 }
 
-export function starostaReject(id: string) {
-    exams = exams.filter((e) => e.id !== id);
-    notify();
-}
-
 export const starostaApprove = approveByStarosta;
 export const lecturerApprove = approveByLecturer;
 export const deanApprove = deanFinalApprove;
 export const deanReject = deanFinalReject;
 export const starostaRejectAction = starostaReject;
-
-

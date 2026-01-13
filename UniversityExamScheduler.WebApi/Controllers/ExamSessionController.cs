@@ -8,12 +8,13 @@ using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
-[Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class ExamSessionController(IExamSessionService sessionService, IMapper mapper) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> AddSession(CreateExamSessionDto sessionDto, CancellationToken cancellationToken)
     {
         var created = await sessionService.AddAsync(sessionDto, cancellationToken);
@@ -39,6 +40,7 @@ public class ExamSessionController(IExamSessionService sessionService, IMapper m
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> UpdateSession(Guid id, UpdateExamSessionDto sessionDto, CancellationToken cancellationToken)
     {
         await sessionService.UpdateAsync(id, sessionDto, cancellationToken);
@@ -48,6 +50,7 @@ public class ExamSessionController(IExamSessionService sessionService, IMapper m
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> DeleteSession(Guid id, CancellationToken cancellationToken)
     {
         await sessionService.RemoveAsync(id, cancellationToken);

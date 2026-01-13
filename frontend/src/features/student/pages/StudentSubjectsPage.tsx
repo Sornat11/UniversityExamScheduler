@@ -22,7 +22,6 @@ export default function StudentSubjectsPage() {
     const { events, loading } = useExamEvents();
     const sessionPeriod = useSessionPeriod();
 
-    // Filtry (dzia'aja na mockach; na backendzie zadzialaja w 100% dopiero jak backend zacznie zwracac te pola)
     const [status, setStatus] = useState<"Wszystkie" | ExamStatus>("Wszystkie");
     const fallback = "Brak danych";
 

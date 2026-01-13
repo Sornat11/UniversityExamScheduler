@@ -20,4 +20,28 @@ public class ExamTermRepository : BaseRepository<ExamTerm>, IExamTermRepository
             t => t.SessionId == sessionId && (t.Date < start || t.Date > end),
             cancellationToken);
     }
+
+    public async Task<IEnumerable<ExamTerm>> ListWithDetailsAsync(Guid? lecturerId, Guid? studentId, CancellationToken cancellationToken = default)
+    {
+        IQueryable<ExamTerm> query = _set
+            .AsNoTracking()
+            .Include(t => t.Exam)
+                .ThenInclude(e => e.Group)
+            .Include(t => t.Exam)
+                .ThenInclude(e => e.Lecturer)
+            .Include(t => t.Room);
+
+        if (lecturerId.HasValue)
+        {
+            query = query.Where(t => t.Exam != null && t.Exam!.LecturerId == lecturerId.Value);
+        }
+
+        if (studentId.HasValue)
+        {
+            query = query.Where(t => t.Exam != null && _context.GroupMembers.Any(
+                m => m.StudentId == studentId.Value && m.GroupId == t.Exam!.GroupId));
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
 }

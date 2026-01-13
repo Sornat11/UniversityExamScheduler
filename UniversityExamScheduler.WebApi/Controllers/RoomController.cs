@@ -8,12 +8,13 @@ using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
-[Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class RoomController(IRoomService roomService, IMapper mapper) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> AddRoom(CreateRoomDto roomDto, CancellationToken cancellationToken)
     {
         var created = await roomService.AddAsync(roomDto, cancellationToken);
@@ -47,6 +48,7 @@ public class RoomController(IRoomService roomService, IMapper mapper) : Controll
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> UpdateRoom(Guid id, UpdateRoomDto roomDto, CancellationToken cancellationToken)
     {
         await roomService.UpdateAsync(id, roomDto, cancellationToken);
@@ -56,6 +58,7 @@ public class RoomController(IRoomService roomService, IMapper mapper) : Controll
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
     public async Task<IActionResult> DeleteRoom(Guid id, CancellationToken cancellationToken)
     {
         await roomService.RemoveAsync(id, cancellationToken);

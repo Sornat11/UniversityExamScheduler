@@ -14,4 +14,7 @@ public class StudentGroupRepository : BaseRepository<StudentGroup>, IStudentGrou
 
     public Task<StudentGroup?> GetByNameAsync(string name, CancellationToken cancellationToken = default) =>
         _set.FirstOrDefaultAsync(g => g.Name == name, cancellationToken);
+
+    public Task<bool> IsMemberAsync(Guid studentId, Guid groupId, CancellationToken cancellationToken = default) =>
+        _context.GroupMembers.AnyAsync(m => m.StudentId == studentId && m.GroupId == groupId, cancellationToken);
 }

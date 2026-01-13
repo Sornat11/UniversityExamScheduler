@@ -12,6 +12,7 @@ public interface IStudentGroupService
     Task<StudentGroup?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<StudentGroup?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<IEnumerable<StudentGroup>> ListAsync(CancellationToken cancellationToken = default);
+    Task<bool> IsMemberAsync(Guid studentId, Guid groupId, CancellationToken cancellationToken = default);
     Task<StudentGroup> AddAsync(CreateStudentGroupDto groupDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateStudentGroupDto groupDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -36,6 +37,9 @@ public class StudentGroupService : IStudentGroupService
 
     public Task<IEnumerable<StudentGroup>> ListAsync(CancellationToken cancellationToken = default) =>
         _uow.StudentGroups.ListAsync(cancellationToken);
+
+    public Task<bool> IsMemberAsync(Guid studentId, Guid groupId, CancellationToken cancellationToken = default) =>
+        _uow.StudentGroups.IsMemberAsync(studentId, groupId, cancellationToken);
 
     public async Task<StudentGroup> AddAsync(CreateStudentGroupDto groupDto, CancellationToken cancellationToken = default)
     {

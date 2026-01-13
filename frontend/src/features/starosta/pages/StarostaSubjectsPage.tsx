@@ -59,6 +59,26 @@ export default function StarostaSubjectsPage() {
         window.setTimeout(() => setToast(null), 2500);
     }
 
+    async function handleApprove(id: string) {
+        try {
+            await starostaApprove(id);
+            showToast({ type: "success", message: "Egzamin zostal zatwierdzony!" });
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie zatwierdzic egzaminu.";
+            showToast({ type: "error", message });
+        }
+    }
+
+    async function handleReject(id: string) {
+        try {
+            await starostaReject(id);
+            showToast({ type: "success", message: "Propozycja zostala odrzucona." });
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie odrzucic propozycji.";
+            showToast({ type: "error", message });
+        }
+    }
+
     const visibleEvents = useMemo(
         () => getVisibleExamEvents(events, user, sessionPeriod),
         [events, user, sessionPeriod]
@@ -159,8 +179,7 @@ export default function StarostaSubjectsPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        starostaApprove(r.id);
-                                                        showToast({ type: "success", message: "Egzamin zostal zatwierdzony!" });
+                                                        void handleApprove(r.id);
                                                     }}
                                                     className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600"
                                                     title="Zatwierdz"
@@ -171,8 +190,7 @@ export default function StarostaSubjectsPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        starostaReject(r.id);
-                                                        showToast({ type: "error", message: "Propozycja zostala odrzucona." });
+                                                        void handleReject(r.id);
                                                     }}
                                                     className="p-2 rounded-lg hover:bg-red-50 text-red-600"
                                                     title="Odrzuc"
@@ -207,8 +225,7 @@ export default function StarostaSubjectsPage() {
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            starostaApprove(r.id);
-                                            showToast({ type: "success", message: "Egzamin zostal zatwierdzony!" });
+                                            void handleApprove(r.id);
                                         }}
                                         className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
                                     >
@@ -217,8 +234,7 @@ export default function StarostaSubjectsPage() {
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            starostaReject(r.id);
-                                            showToast({ type: "error", message: "Propozycja zostala odrzucona." });
+                                            void handleReject(r.id);
                                         }}
                                         className="px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold"
                                     >

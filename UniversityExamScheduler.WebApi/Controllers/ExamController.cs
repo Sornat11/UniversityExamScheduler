@@ -38,9 +38,22 @@ public class ExamController(IExamService examService, IMapper mapper) : Controll
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)},{nameof(Role.Student)}")]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
+        if (User.IsInRole(nameof(Role.Student)))
+        {
+            if (!TryGetUserId(out var studentId))
+            {
+                return Forbid();
+            }
+
+            var studentExams = await examService.ListForStudentAsync(studentId, cancellationToken);
+
+            var studentDtos = mapper.Map<IEnumerable<GetExamDto>>(studentExams);
+            return Ok(studentDtos);
+        }
+
         var exams = await examService.ListAsync(cancellationToken);
         if (User.IsInRole(nameof(Role.Lecturer)))
         {

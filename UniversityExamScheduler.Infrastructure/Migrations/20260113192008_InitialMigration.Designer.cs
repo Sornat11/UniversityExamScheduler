@@ -12,8 +12,8 @@ using UniversityExamScheduler.Infrastructure.Persistence;
 namespace UniversityExamScheduler.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260106110151_AddUserIsStarostaColumnFix")]
-    partial class AddUserIsStarostaColumnFix
+    [Migration("20260113192008_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

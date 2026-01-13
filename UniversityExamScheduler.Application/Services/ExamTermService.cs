@@ -4,6 +4,7 @@ using UniversityExamScheduler.Application.Contracts;
 using UniversityExamScheduler.Application.Dtos.ExamTerm.Request;
 using UniversityExamScheduler.Application.Exceptions;
 using UniversityExamScheduler.Domain.Entities;
+using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.Application.Services;
 
@@ -12,8 +13,10 @@ public interface IExamTermService
     Task<ExamTerm?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<ExamTerm>> ListAsync(CancellationToken cancellationToken = default);
     Task<IEnumerable<ExamTerm>> ListByCourseAsync(Guid courseId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<ExamTerm>> ListWithDetailsAsync(Guid? lecturerId, Guid? studentId, CancellationToken cancellationToken = default);
     Task<ExamTerm> AddAsync(CreateExamTermDto termDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateExamTermDto termDto, CancellationToken cancellationToken = default);
+    Task UpdateStatusAsync(Guid id, ExamTermStatus status, string? rejectionReason, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
@@ -36,6 +39,9 @@ public class ExamTermService : IExamTermService
 
     public Task<IEnumerable<ExamTerm>> ListByCourseAsync(Guid courseId, CancellationToken cancellationToken = default) =>
         _uow.ExamTerms.ListByCourseAsync(courseId, cancellationToken);
+
+    public Task<IEnumerable<ExamTerm>> ListWithDetailsAsync(Guid? lecturerId, Guid? studentId, CancellationToken cancellationToken = default) =>
+        _uow.ExamTerms.ListWithDetailsAsync(lecturerId, studentId, cancellationToken);
 
     public async Task<ExamTerm> AddAsync(CreateExamTermDto termDto, CancellationToken cancellationToken = default)
     {
@@ -60,6 +66,19 @@ public class ExamTermService : IExamTermService
             throw new EntityNotFoundException($"Exam term with ID '{id}' not found.");
 
         _mapper.Map(termDto, term);
+        await _uow.ExamTerms.UpdateAsync(term, cancellationToken);
+        await _uow.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateStatusAsync(Guid id, ExamTermStatus status, string? rejectionReason, CancellationToken cancellationToken = default)
+    {
+        var term = await _uow.ExamTerms.GetByIdAsync(id);
+        if (term is null)
+            throw new EntityNotFoundException($"Exam term with ID '{id}' not found.");
+
+        term.Status = status;
+        term.RejectionReason = rejectionReason;
+
         await _uow.ExamTerms.UpdateAsync(term, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
     }

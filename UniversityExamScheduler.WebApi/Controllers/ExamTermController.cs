@@ -12,10 +12,14 @@ namespace UniversityExamScheduler.WebApi.Controllers;
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class ExamTermController(IExamTermService termService, IExamService examService, IMapper mapper) : ControllerBase
+public class ExamTermController(
+    IExamTermService termService,
+    IExamService examService,
+    IStudentGroupService studentGroupService,
+    IMapper mapper) : ControllerBase
 {
     [HttpPost]
-    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)},{nameof(Role.Student)}")]
     public async Task<IActionResult> AddTerm(CreateExamTermDto termDto, CancellationToken cancellationToken)
     {
         if (User.IsInRole(nameof(Role.Lecturer)))
@@ -38,6 +42,33 @@ public class ExamTermController(IExamTermService termService, IExamService examS
 
             termDto.CreatedBy = lecturerId;
             termDto.Status = ExamTermStatus.ProposedByLecturer;
+        }
+        else if (User.IsInRole(nameof(Role.Student)))
+        {
+            if (!User.HasClaim(c => c.Type == "is_starosta" && c.Value == "true"))
+            {
+                return Forbid();
+            }
+
+            if (!TryGetUserId(out var studentId))
+            {
+                return Forbid();
+            }
+
+            var exam = await examService.GetByIdAsync(termDto.CourseId, cancellationToken);
+            if (exam is null)
+            {
+                return NotFound();
+            }
+
+            var isMember = await studentGroupService.IsMemberAsync(studentId, exam.GroupId, cancellationToken);
+            if (!isMember)
+            {
+                return Forbid();
+            }
+
+            termDto.CreatedBy = studentId;
+            termDto.Status = ExamTermStatus.ProposedByStudent;
         }
         else if (termDto.CreatedBy == Guid.Empty)
         {
@@ -90,6 +121,174 @@ public class ExamTermController(IExamTermService termService, IExamService examS
     public async Task<IActionResult> DeleteTerm(Guid id, CancellationToken cancellationToken)
     {
         await termService.RemoveAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    public sealed record RejectRequest(string? Reason);
+
+    [HttpPost("{id}/approve-by-starosta")]
+    [Authorize(Roles = $"{nameof(Role.Student)}")]
+    public async Task<IActionResult> ApproveByStarosta(Guid id, CancellationToken cancellationToken)
+    {
+        if (!User.HasClaim(c => c.Type == "is_starosta" && c.Value == "true"))
+        {
+            return Forbid();
+        }
+
+        if (!TryGetUserId(out var studentId))
+        {
+            return Forbid();
+        }
+
+        var term = await termService.GetByIdAsync(id, cancellationToken);
+        if (term is null) return NotFound();
+        if (term.Status != ExamTermStatus.ProposedByLecturer)
+        {
+            return BadRequest(new { message = "Only lecturer proposals can be approved by starosta." });
+        }
+
+        var exam = await examService.GetByIdAsync(term.CourseId, cancellationToken);
+        if (exam is null)
+        {
+            return NotFound();
+        }
+
+        var isMember = await studentGroupService.IsMemberAsync(studentId, exam.GroupId, cancellationToken);
+        if (!isMember)
+        {
+            return Forbid();
+        }
+
+        await termService.UpdateStatusAsync(term.Id, ExamTermStatus.Approved, null, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id}/reject-by-starosta")]
+    [Authorize(Roles = $"{nameof(Role.Student)}")]
+    public async Task<IActionResult> RejectByStarosta(Guid id, [FromBody] RejectRequest? request, CancellationToken cancellationToken)
+    {
+        if (!User.HasClaim(c => c.Type == "is_starosta" && c.Value == "true"))
+        {
+            return Forbid();
+        }
+
+        if (!TryGetUserId(out var studentId))
+        {
+            return Forbid();
+        }
+
+        var term = await termService.GetByIdAsync(id, cancellationToken);
+        if (term is null) return NotFound();
+        if (term.Status != ExamTermStatus.ProposedByLecturer)
+        {
+            return BadRequest(new { message = "Only lecturer proposals can be rejected by starosta." });
+        }
+
+        var exam = await examService.GetByIdAsync(term.CourseId, cancellationToken);
+        if (exam is null)
+        {
+            return NotFound();
+        }
+
+        var isMember = await studentGroupService.IsMemberAsync(studentId, exam.GroupId, cancellationToken);
+        if (!isMember)
+        {
+            return Forbid();
+        }
+
+        await termService.UpdateStatusAsync(term.Id, ExamTermStatus.Rejected, request?.Reason, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id}/approve-by-lecturer")]
+    [Authorize(Roles = $"{nameof(Role.Lecturer)}")]
+    public async Task<IActionResult> ApproveByLecturer(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var lecturerId))
+        {
+            return Forbid();
+        }
+
+        var term = await termService.GetByIdAsync(id, cancellationToken);
+        if (term is null) return NotFound();
+        if (term.Status != ExamTermStatus.ProposedByStudent)
+        {
+            return BadRequest(new { message = "Only student proposals can be approved by lecturer." });
+        }
+
+        var exam = await examService.GetByIdAsync(term.CourseId, cancellationToken);
+        if (exam is null)
+        {
+            return NotFound();
+        }
+
+        if (exam.LecturerId != lecturerId)
+        {
+            return Forbid();
+        }
+
+        await termService.UpdateStatusAsync(term.Id, ExamTermStatus.Approved, null, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id}/reject-by-lecturer")]
+    [Authorize(Roles = $"{nameof(Role.Lecturer)}")]
+    public async Task<IActionResult> RejectByLecturer(Guid id, [FromBody] RejectRequest? request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var lecturerId))
+        {
+            return Forbid();
+        }
+
+        var term = await termService.GetByIdAsync(id, cancellationToken);
+        if (term is null) return NotFound();
+        if (term.Status != ExamTermStatus.ProposedByStudent)
+        {
+            return BadRequest(new { message = "Only student proposals can be rejected by lecturer." });
+        }
+
+        var exam = await examService.GetByIdAsync(term.CourseId, cancellationToken);
+        if (exam is null)
+        {
+            return NotFound();
+        }
+
+        if (exam.LecturerId != lecturerId)
+        {
+            return Forbid();
+        }
+
+        await termService.UpdateStatusAsync(term.Id, ExamTermStatus.Rejected, request?.Reason, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id}/final-approve")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
+    public async Task<IActionResult> FinalApprove(Guid id, CancellationToken cancellationToken)
+    {
+        var term = await termService.GetByIdAsync(id, cancellationToken);
+        if (term is null) return NotFound();
+        if (term.Status != ExamTermStatus.Approved)
+        {
+            return BadRequest(new { message = "Only approved terms can be finalized." });
+        }
+
+        await termService.UpdateStatusAsync(term.Id, ExamTermStatus.Finalized, null, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id}/final-reject")]
+    [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)}")]
+    public async Task<IActionResult> FinalReject(Guid id, [FromBody] RejectRequest? request, CancellationToken cancellationToken)
+    {
+        var term = await termService.GetByIdAsync(id, cancellationToken);
+        if (term is null) return NotFound();
+        if (term.Status != ExamTermStatus.Approved)
+        {
+            return BadRequest(new { message = "Only approved terms can be rejected by dean office." });
+        }
+
+        await termService.UpdateStatusAsync(term.Id, ExamTermStatus.Rejected, request?.Reason, cancellationToken);
         return NoContent();
     }
 

@@ -41,10 +41,30 @@ export default function DeanOfficeSubjectsPage() {
             time: e.time ?? fallback,
             room: e.room ?? fallback,
             datePL: formatDatePLFromISO(e.dateISO),
-            // dziekanat ma akcje tylko gdy obie strony zaakceptowaly i nie ma finalnego zatwierdzenia
-            canFinalAction: !e.deanApproved && e.status !== "Zatwierdzony" && !!e.approvedByStarosta && !!e.approvedByLecturer,
+            // dziekanat ma akcje tylko dla terminow oczekujacych finalnej decyzji
+            canFinalAction: e.status === "Czesciowo zatwierdzony",
         }));
     }, [visibleEvents]);
+
+    async function handleFinalApprove(id: string) {
+        try {
+            await deanFinalApprove(id);
+            setToast("Egzamin zostal zatwierdzony!");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie zatwierdzic egzaminu.";
+            setToast(message);
+        }
+    }
+
+    async function handleFinalReject(id: string) {
+        try {
+            await deanFinalReject(id);
+            setToast("Egzamin zostal odrzucony!");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie odrzucic egzaminu.";
+            setToast(message);
+        }
+    }
 
     const options = useMemo(() => {
         const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== fallback)));
@@ -175,8 +195,7 @@ export default function DeanOfficeSubjectsPage() {
                                                     className="text-emerald-600 hover:text-emerald-700"
                                                     title="Zatwierdz"
                                                     onClick={() => {
-                                                        deanFinalApprove(r.id);
-                                                        setToast("Egzamin zostal zatwierdzony!");
+                                                        void handleFinalApprove(r.id);
                                                     }}
                                                 >
                                                     <Check className="w-5 h-5" />
@@ -186,8 +205,7 @@ export default function DeanOfficeSubjectsPage() {
                                                     className="text-red-500 hover:text-red-600"
                                                     title="Odrzuc"
                                                     onClick={() => {
-                                                        deanFinalReject(r.id);
-                                                        setToast("Egzamin zostal odrzucony!");
+                                                        void handleFinalReject(r.id);
                                                     }}
                                                 >
                                                     <X className="w-5 h-5" />

@@ -11,6 +11,7 @@ public interface IExamService
 {
     Task<Exam?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<Exam>> ListAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<Exam>> ListForStudentAsync(Guid studentId, CancellationToken cancellationToken = default);
     Task<Exam> AddAsync(CreateExamDto examDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateExamDto examDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -32,6 +33,9 @@ public class ExamService : IExamService
 
     public Task<IEnumerable<Exam>> ListAsync(CancellationToken cancellationToken = default) =>
         _uow.Exams.ListAsync(cancellationToken);
+
+    public Task<IEnumerable<Exam>> ListForStudentAsync(Guid studentId, CancellationToken cancellationToken = default) =>
+        _uow.Exams.ListForStudentAsync(studentId, cancellationToken);
 
     public async Task<Exam> AddAsync(CreateExamDto examDto, CancellationToken cancellationToken = default)
     {
