@@ -17,6 +17,15 @@ export type UserDto = {
     role: Role | number;
     isStarosta: boolean;
     isActive: boolean;
+    studentGroups?: UserStudentGroupDto[];
+};
+
+export type UserStudentGroupDto = {
+    id: string;
+    name: string;
+    fieldOfStudy: string;
+    studyType: "Stacjonarne" | "Niestacjonarne";
+    semester: number;
 };
 
 export type ExamSessionDto = {
@@ -35,7 +44,14 @@ export type ExamDto = {
 };
 
 export type ExamTermType = "FirstAttempt" | "Retake" | "Commission";
-export type ExamTermStatus = "Draft" | "ProposedByLecturer" | "ProposedByStudent" | "Conflict" | "Approved" | "Finalized" | "Rejected";
+export type ExamTermStatus =
+    | "Draft"
+    | "ProposedByLecturer"
+    | "ProposedByStudent"
+    | "Conflict"
+    | "Approved"
+    | "Finalized"
+    | "Rejected";
 
 export type ExamTermDto = {
     id: string;

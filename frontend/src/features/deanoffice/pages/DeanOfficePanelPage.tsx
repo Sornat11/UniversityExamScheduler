@@ -63,6 +63,10 @@ function getErrorMessage(error: unknown, fallback: string) {
     return fallback;
 }
 
+function isStudentRole(option: RoleOption) {
+    return option === "Student" || option === "Starosta";
+}
+
 // Components defined below...
 
 export default function DeanOfficePanelPage() {
@@ -77,6 +81,9 @@ export default function DeanOfficePanelPage() {
     const [userPage, setUserPage] = useState(1);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserDto | null>(null);
+    const selectedRoleOption = selectedUser ? roleOptionFromUser(selectedUser) : null;
+    const selectedStudentGroups = selectedUser?.studentGroups ?? [];
+    const selectedIsStudent = selectedRoleOption ? isStudentRole(selectedRoleOption) : false;
 
     const [sessions, setSessions] = useState<ExamSessionDto[]>([]);
     const [sessionForm, setSessionForm] = useState<Omit<ExamSessionDto, "id">>({ name: "", startDate: "", endDate: "", isActive: true });
@@ -427,11 +434,30 @@ export default function DeanOfficePanelPage() {
                             </div>
                             <div className="text-sm text-slate-600">Email: {selectedUser.email}</div>
                             <div className="text-sm text-slate-600">
-                                Rola: {roleOptionLabel(roleOptionFromUser(selectedUser))}
+                                Rola: {roleOptionLabel(selectedRoleOption ?? "Student")}
                             </div>
                             <div className="text-sm text-slate-600">
                                 Status: {selectedUser.isActive ? "Aktywny" : "Nieaktywny"}
                             </div>
+                            {selectedIsStudent && (
+                                <div className="text-sm text-slate-600 mt-2">
+                                    Studia:
+                                    {selectedStudentGroups.length > 0 ? (
+                                        <div className="mt-1 space-y-1">
+                                            {selectedStudentGroups.map((g) => {
+                                                const year = Math.max(1, Math.ceil(g.semester / 2));
+                                                return (
+                                                    <div key={g.id} className="text-slate-700">
+                                                        {g.fieldOfStudy} ({g.studyType}) - Rok {year}, sem. {g.semester} - {g.name}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-slate-500 mt-1">Brak przypisanej grupy.</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </SectionCard>

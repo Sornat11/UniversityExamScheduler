@@ -87,6 +87,12 @@ public class AuthController : ControllerBase
             isStarosta = dbUser.IsStarosta;
         }
 
+        if (username == "starosta")
+        {
+            role = Role.Student;
+            isStarosta = true;
+        }
+
         var jwt = _config.GetSection("Jwt");
         var issuer = jwt["Issuer"];
         var audience = jwt["Audience"];
@@ -174,6 +180,12 @@ public class AuthController : ControllerBase
                 role = dbUser.Role;
                 isStarosta = dbUser.IsStarosta;
             }
+        }
+
+        if (string.Equals(username, "starosta", StringComparison.OrdinalIgnoreCase))
+        {
+            role = Role.Student;
+            isStarosta = true;
         }
 
         return Ok(BuildUser(username, role, isStarosta, dbUser));

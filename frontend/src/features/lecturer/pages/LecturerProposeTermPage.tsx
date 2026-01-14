@@ -151,18 +151,8 @@ export default function LecturerProposeTermPage() {
         };
     }, []);
 
-    const selectedGroup = useMemo(() => groups.find((g) => g.id === groupId), [groups, groupId]);
     const role = useMemo(() => normalizeRole(user?.role), [user]);
     const isLecturer = role === "Lecturer";
-    const scope = useMemo(() => {
-        if (!selectedGroup) return null;
-        const year = Math.max(1, Math.ceil(selectedGroup.semester / 2));
-        return {
-            fieldOfStudy: selectedGroup.fieldOfStudy,
-            studyType: selectedGroup.studyType,
-            year: String(year),
-        };
-    }, [selectedGroup]);
 
     useEffect(() => {
         if (subjects.length === 0) {
@@ -187,7 +177,7 @@ export default function LecturerProposeTermPage() {
 
     return (
         <div className="space-y-6">
-            <div className="bg-white border rounded-2xl p-6 space-y-5 max-w-2xl">
+            <div className="bg-white border rounded-2xl p-6 space-y-5 w-full">
                 <div className="text-slate-900 font-semibold text-lg">Zaproponuj termin egzaminu</div>
 
                 <div className="space-y-1">
@@ -310,15 +300,6 @@ export default function LecturerProposeTermPage() {
                     <SendHorizonal className="w-4 h-4" />
                     Zaproponuj termin
                 </button>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 max-w-2xl">
-                <div className="text-emerald-800 font-semibold mb-3">Zakres uprawnien</div>
-                <ul className="text-sm text-emerald-800 space-y-1">
-                    <li>· Kierunek: <b>{scope?.fieldOfStudy ?? "-"}</b></li>
-                    <li>· Typ studiow: <b>{scope?.studyType ?? "-"}</b></li>
-                    <li>· Rok: <b>{scope?.year ?? "-"}</b></li>
-                </ul>
             </div>
         </div>
     );

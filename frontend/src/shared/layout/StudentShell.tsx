@@ -1,6 +1,6 @@
-import {type ReactNode, useMemo} from "react";
+import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { CalendarDays, BookOpen, PlusCircle, LogOut } from "lucide-react";
+import { CalendarDays, BookOpen, PlusCircle, LogOut, UserCircle } from "lucide-react";
 import { cx } from "../utils/cx";
 
 type Props = {
@@ -65,18 +65,40 @@ export default function StudentShell({ userName, role, onLogout, children }: Pro
         return "/app/student";
     }, [isDeanOffice, isStarosta, isLecturer]);
 
+    const profilePath = `${base}/profile`;
+
     const pageTitle = useMemo(() => {
         const p = location.pathname;
         if (p.includes("/schedule")) return "Harmonogram egzaminów";
         if (p.includes("/subjects")) return "Lista przedmiotów";
         if (p.includes("/propose")) return "Proponowanie terminu";
         if (p.includes("/panel")) return "Panel dziekanatu";
+        if (p.includes("/profile")) return "Panel uzytkownika";
         return "Panel";
     }, [location.pathname]);
 
     return (
         <div className="min-h-screen bg-neutral-50">
-            <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+                <header className="bg-white border rounded-2xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    <NavLink
+                        to={profilePath}
+                        end
+                        className={({ isActive }) =>
+                            cx(
+                                "inline-flex items-center gap-3 rounded-xl border px-3 py-2 transition",
+                                isActive
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 text-slate-700 hover:bg-neutral-100"
+                            )
+                        }
+                    >
+                        <UserCircle className="w-5 h-5" />
+                        <div className="text-left">
+                            <div className="text-sm font-semibold">Panel uzytkownika</div>
+                        </div>
+                    </NavLink>
+                </header>
                 <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
                     {/* SIDEBAR */}
                     <aside className="bg-white border rounded-2xl p-4 h-fit lg:sticky lg:top-6">

@@ -32,7 +32,7 @@ public class ExamEventsController : ControllerBase
         public string? Year { get; init; }
         public string? GroupId { get; init; }
         public string? GroupName { get; init; }
-        public string Status { get; init; } = "Proponowany";
+        public ExamTermStatus Status { get; init; } = ExamTermStatus.Draft;
     }
 
     [HttpGet]
@@ -66,7 +66,6 @@ public class ExamEventsController : ControllerBase
         }
 
         var dtos = items
-            .Where(t => t.Status != ExamTermStatus.Rejected)
             .Select(MapEvent)
             .ToList();
         return Ok(dtos);
@@ -106,7 +105,7 @@ public class ExamEventsController : ControllerBase
             Year = year,
             GroupId = group?.Id.ToString(),
             GroupName = group?.Name,
-            Status = MapStatus(term.Status)
+            Status = term.Status
         };
     }
 
@@ -116,13 +115,4 @@ public class ExamEventsController : ControllerBase
         return (int)Math.Ceiling(semester / 2.0);
     }
 
-    private static string MapStatus(ExamTermStatus status) =>
-        status switch
-        {
-            ExamTermStatus.Approved => "Czesciowo zatwierdzony",
-            ExamTermStatus.Finalized => "Zatwierdzony",
-            ExamTermStatus.Conflict => "Czesciowo zatwierdzony",
-            ExamTermStatus.Rejected => "Proponowany",
-            _ => "Proponowany"
-        };
 }

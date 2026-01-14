@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using UniversityExamScheduler.Domain.Enums;
 
@@ -25,4 +26,6 @@ public class GetUserDto
     public bool IsStarosta { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public IReadOnlyCollection<GetUserStudentGroupDto> StudentGroups { get; set; } = new List<GetUserStudentGroupDto>();
 }

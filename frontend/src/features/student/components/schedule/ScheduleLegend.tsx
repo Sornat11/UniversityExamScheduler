@@ -20,8 +20,6 @@ export function ScheduleLegend({ sessionPeriod }: Props) {
         <div className="bg-white border rounded-2xl p-4">
             <div className="flex items-center gap-4">
                 <div className="text-sm text-slate-600">Legenda:</div>
-                <LegendItem label="Proponowany" dotClass="bg-yellow-200 border-yellow-300" />
-                <LegendItem label="Czesciowo zatwierdzony" dotClass="bg-blue-200 border-blue-300" />
                 <LegendItem label="Zatwierdzony" dotClass="bg-emerald-200 border-emerald-300" />
                 {sessionPeriod && (
                     <LegendItem

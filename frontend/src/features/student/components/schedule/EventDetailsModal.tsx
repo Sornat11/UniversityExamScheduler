@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { ExamEvent } from "../../../exams/data/examStore";
+import { getStatusLabel, type ExamEvent } from "../../../exams/data/examStore";
 import { statusDotClass } from "../../../exams/utils/status";
 
 type Props = {
@@ -58,7 +58,7 @@ export function EventDetailsModal({ event, onClose }: Props) {
                     {event.status && (
                         <div className="inline-flex items-center gap-2 text-slate-700 mt-1">
                             <span className={`w-3 h-3 rounded border ${statusDotClass(event.status)}`} />
-                            <span>Status: {event.status}</span>
+                            <span>Status: {getStatusLabel(event.status)}</span>
                         </div>
                     )}
                 </div>

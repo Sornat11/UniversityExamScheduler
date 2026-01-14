@@ -13,7 +13,10 @@ public class UserRepository : BaseRepository<User>, IUserRepository
     public UserRepository(ApplicationDbContext context) : base(context) { }
 
     public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
-        _set.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        _set
+            .Include(u => u.GroupMemberships)
+            .ThenInclude(m => m.Group)
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
 
     public Task<int> CountByRoleAsync(Role role, CancellationToken cancellationToken = default) =>
         _set.CountAsync(u => u.Role == role, cancellationToken);
@@ -23,7 +26,11 @@ public class UserRepository : BaseRepository<User>, IUserRepository
         var normalizedPage = page < 1 ? 1 : page;
         var normalizedPageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
 
-        var users = _set.AsNoTracking().AsQueryable();
+        var users = _set
+            .AsNoTracking()
+            .Include(u => u.GroupMemberships)
+            .ThenInclude(m => m.Group)
+            .AsQueryable();
         if (!string.IsNullOrWhiteSpace(query))
         {
             var q = query.Trim().ToLower();

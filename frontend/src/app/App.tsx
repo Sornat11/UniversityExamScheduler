@@ -1,5 +1,5 @@
 ﻿import type { ReactElement } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { normalizeRole, isStarosta } from "../features/auth/utils/roles";
 import StudentShell from "../shared/layout/StudentShell";
@@ -14,6 +14,7 @@ import LecturerSubjectsPage from "../features/lecturer/pages/LecturerSubjectsPag
 import LecturerProposeTermPage from "../features/lecturer/pages/LecturerProposeTermPage";
 import DeanOfficeSubjectsPage from "../features/deanoffice/pages/DeanOfficeSubjectsPage";
 import DeanOfficePanelPage from "../features/deanoffice/pages/DeanOfficePanelPage";
+import UserProfilePage from "../features/profile/pages/UserProfilePage";
 
 type ProtectedProps = {
     children: ReactElement;
@@ -64,6 +65,13 @@ function AppRedirect() {
 function StudentApp() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    if (isStarosta(user)) {
+        const nextPath = location.pathname.replace("/app/student", "/app/starosta");
+        const nextTo = `${nextPath}${location.search}${location.hash}`;
+        return <Navigate to={nextTo} replace />;
+    }
 
     return (
         <StudentShell
@@ -77,6 +85,7 @@ function StudentApp() {
             <Routes>
                 <Route path="schedule" element={<StudentSchedulePage />} />
                 <Route path="subjects" element={<StudentSubjectsPage />} />
+                <Route path="profile" element={<UserProfilePage />} />
                 <Route path="*" element={<Navigate to="/app/student/schedule" replace />} />
             </Routes>
         </StudentShell>
@@ -100,6 +109,7 @@ function StarostaApp() {
                 <Route path="schedule" element={<StudentSchedulePage />} />
                 <Route path="subjects" element={<StarostaSubjectsPage />} />
                 <Route path="propose" element={<StarostaProposeTermPage />} />
+                <Route path="profile" element={<UserProfilePage />} />
                 <Route path="*" element={<Navigate to="/app/starosta/schedule" replace />} />
             </Routes>
         </StudentShell>
@@ -123,6 +133,7 @@ function LecturerApp() {
                 <Route path="schedule" element={<StudentSchedulePage />} />
                 <Route path="propose" element={<LecturerProposeTermPage />} />
                 <Route path="subjects" element={<LecturerSubjectsPage />} />
+                <Route path="profile" element={<UserProfilePage />} />
                 <Route path="*" element={<Navigate to="/app/lecturer/schedule" replace />} />
             </Routes>
         </StudentShell>
@@ -145,6 +156,7 @@ function DeanOfficeApp() {
             <Routes>
                 <Route path="subjects" element={<DeanOfficeSubjectsPage />} />
                 <Route path="panel" element={<DeanOfficePanelPage />} />
+                <Route path="profile" element={<UserProfilePage />} />
                 <Route path="*" element={<Navigate to="/app/deanoffice/subjects" replace />} />
             </Routes>
         </StudentShell>

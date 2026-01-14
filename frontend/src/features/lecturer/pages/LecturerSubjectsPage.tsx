@@ -1,6 +1,14 @@
 ﻿import { useMemo, useState } from "react";
-import { Filter } from "lucide-react";
-import { getVisibleExamEvents, type ExamStatus } from "../../exams/data/examStore";
+import { Check, X, Filter } from "lucide-react";
+import {
+    getStatusCategory,
+    getVisibleExamEvents,
+    isLecturerApprovable,
+    lecturerApprove,
+    lecturerReject,
+    type ExamStatus,
+    type ExamTermStatus,
+} from "../../exams/data/examStore";
 import { useExamEvents } from "../../exams/hooks/useExamEvents";
 import { StatusBadge } from "../../exams/components/StatusBadge";
 import { formatDatePLFromISO } from "../../exams/utils/date";
@@ -14,8 +22,34 @@ type Row = {
     date: string;
     time: string;
     room: string;
-    status: ExamStatus;
+    status: ExamTermStatus;
 };
+
+type Toast = { type: "success" | "error"; message: string } | null;
+
+type ToastViewProps = {
+    toast: Toast;
+};
+
+function ToastView({ toast }: ToastViewProps) {
+    if (!toast) return null;
+
+    const base =
+        "fixed top-6 right-6 z-50 min-w-[320px] max-w-[520px] px-5 py-3 rounded-2xl border shadow-sm text-sm flex items-center gap-3";
+    const cls =
+        toast.type === "success"
+            ? `${base} bg-emerald-50 border-emerald-200 text-emerald-800`
+            : `${base} bg-red-50 border-red-200 text-red-800`;
+
+    return (
+        <div className={cls}>
+            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-white border">
+                {toast.type === "success" ? "OK" : "!"}
+            </span>
+            <div className="font-medium">{toast.message}</div>
+        </div>
+    );
+}
 
 export default function LecturerSubjectsPage() {
     const { user } = useAuth();
@@ -23,6 +57,32 @@ export default function LecturerSubjectsPage() {
     const sessionPeriod = useSessionPeriod();
 
     const [status, setStatus] = useState<"Wszystkie" | ExamStatus>("Wszystkie");
+    const [toast, setToast] = useState<Toast>(null);
+
+    function showToast(t: Toast) {
+        setToast(t);
+        window.setTimeout(() => setToast(null), 2500);
+    }
+
+    async function handleApprove(id: string) {
+        try {
+            await lecturerApprove(id);
+            showToast({ type: "success", message: "Egzamin zostal zatwierdzony!" });
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie zatwierdzic egzaminu.";
+            showToast({ type: "error", message });
+        }
+    }
+
+    async function handleReject(id: string) {
+        try {
+            await lecturerReject(id);
+            showToast({ type: "success", message: "Propozycja zostala odrzucona." });
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie odrzucic propozycji.";
+            showToast({ type: "error", message });
+        }
+    }
 
     const visibleEvents = useMemo(
         () => getVisibleExamEvents(events, user, sessionPeriod),
@@ -45,12 +105,14 @@ export default function LecturerSubjectsPage() {
 
     const filtered = useMemo(() => {
         let r = rows;
-        if (status !== "Wszystkie") r = r.filter((x) => x.status === status);
+        if (status !== "Wszystkie") r = r.filter((x) => getStatusCategory(x.status) === status);
         return r;
     }, [rows, status]);
 
     return (
         <div className="space-y-6">
+            <ToastView toast={toast} />
+
             <div className="text-slate-900 font-semibold text-xl">Lista przedmiotow</div>
 
             <div className="bg-white border rounded-2xl p-6">
@@ -69,8 +131,8 @@ export default function LecturerSubjectsPage() {
                         >
                             <option>Wszystkie</option>
                             <option>Zatwierdzony</option>
-                            <option>Czesciowo zatwierdzony</option>
                             <option>Proponowany</option>
+                            <option>Odrzucony</option>
                         </select>
                     </div>
                 </div>
@@ -114,7 +176,35 @@ export default function LecturerSubjectsPage() {
                                     <td className="px-6 py-4">
                                         <StatusBadge status={r.status} />
                                     </td>
-                                    <td className="px-6 py-4 text-right text-sm text-slate-400">-</td>
+                                    <td className="px-6 py-4 text-right">
+                                        {isLecturerApprovable(r.status) ? (
+                                            <div className="inline-flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        void handleApprove(r.id);
+                                                    }}
+                                                    className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600"
+                                                    title="Zatwierdz"
+                                                >
+                                                    <Check className="w-5 h-5" />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        void handleReject(r.id);
+                                                    }}
+                                                    className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                                                    title="Odrzuc"
+                                                >
+                                                    <X className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-sm text-slate-400">-</span>
+                                        )}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

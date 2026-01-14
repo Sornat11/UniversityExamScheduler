@@ -10,7 +10,7 @@ import {
     subMonths,
 } from "date-fns";
 import { pl } from "date-fns/locale";
-import { getVisibleExamEvents, downloadExamCSV, type ExamEvent } from "../../exams/data/examStore";
+import { downloadExamCSV, getVisibleExamEvents, isApprovedStatus, type ExamEvent } from "../../exams/data/examStore";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useExamEvents } from "../../exams/hooks/useExamEvents";
 import { useSessionPeriod } from "../../exams/hooks/useSessionPeriod";
@@ -28,10 +28,10 @@ export default function StudentSchedulePage() {
     const [cursor, setCursor] = useState(() => new Date());
     const [selectedEvent, setSelectedEvent] = useState<ExamEvent | null>(null);
 
-    const visibleEvents = useMemo(
-        () => getVisibleExamEvents(events, user, sessionPeriod),
-        [events, user, sessionPeriod]
-    );
+    const visibleEvents = useMemo(() => {
+        const scoped = getVisibleExamEvents(events, user, sessionPeriod);
+        return scoped.filter((event) => isApprovedStatus(event.status));
+    }, [events, user, sessionPeriod]);
 
     const eventsByDate = useMemo(() => {
         const map = new Map<string, ExamEvent[]>();

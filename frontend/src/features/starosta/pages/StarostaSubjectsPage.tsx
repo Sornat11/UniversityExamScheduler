@@ -1,6 +1,14 @@
 ﻿import { useMemo, useState } from "react";
 import { Check, X, Filter } from "lucide-react";
-import { getVisibleExamEvents, type ExamStatus, starostaApprove, starostaReject } from "../../exams/data/examStore";
+import {
+    getStatusCategory,
+    getVisibleExamEvents,
+    isStarostaApprovable,
+    type ExamStatus,
+    type ExamTermStatus,
+    starostaApprove,
+    starostaReject,
+} from "../../exams/data/examStore";
 import { useExamEvents } from "../../exams/hooks/useExamEvents";
 import { StatusBadge } from "../../exams/components/StatusBadge";
 import { formatDatePLFromISO } from "../../exams/utils/date";
@@ -14,7 +22,7 @@ type Row = {
     date: string; // dd.MM.yyyy
     time: string;
     room: string;
-    status: ExamStatus;
+    status: ExamTermStatus;
 };
 
 type Toast = { type: "success" | "error"; message: string } | null;
@@ -100,7 +108,7 @@ export default function StarostaSubjectsPage() {
 
     const filtered = useMemo(() => {
         let r = rows;
-        if (status !== "Wszystkie") r = r.filter((x) => x.status === status);
+        if (status !== "Wszystkie") r = r.filter((x) => getStatusCategory(x.status) === status);
         return r;
     }, [rows, status]);
 
@@ -125,8 +133,8 @@ export default function StarostaSubjectsPage() {
                         >
                             <option>Wszystkie</option>
                             <option>Zatwierdzony</option>
-                            <option>Czesciowo zatwierdzony</option>
                             <option>Proponowany</option>
+                            <option>Odrzucony</option>
                         </select>
                     </div>
                 </div>
@@ -172,9 +180,9 @@ export default function StarostaSubjectsPage() {
                                         <StatusBadge status={r.status} />
                                     </td>
 
-                                    {/* Akcje jak na screenie: tylko dla "Proponowany" */}
+                                    {/* Akcje tylko dla propozycji prowadzacego */}
                                     <td className="px-6 py-4 text-right">
-                                        {r.status === "Proponowany" ? (
+                                        {isStarostaApprovable(r.status) ? (
                                             <div className="inline-flex items-center gap-3">
                                                 <button
                                                     type="button"
@@ -220,7 +228,7 @@ export default function StarostaSubjectsPage() {
                             </div>
                             <div className="text-sm text-slate-700">{r.lecturer}</div>
                             <div className="text-sm text-slate-700">{r.date} · {r.time || "-"} · {r.room || "-"}</div>
-                            {r.status === "Proponowany" && (
+                            {isStarostaApprovable(r.status) && (
                                 <div className="flex items-center gap-3">
                                     <button
                                         type="button"

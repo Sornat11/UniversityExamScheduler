@@ -37,13 +37,28 @@ describe("isStarosta", () => {
         const camel = { ...baseUser, isStarosta: true };
         const legacy = { ...baseUser, isStarost: true } as AuthUser & { isStarost?: boolean };
         const snake = { ...baseUser, is_starosta: true } as AuthUser & { is_starosta?: boolean };
+        const pascal = { ...baseUser, IsStarosta: true } as AuthUser & { IsStarosta?: boolean };
 
         expect(isStarosta(camel)).toBe(true);
         expect(isStarosta(legacy)).toBe(true);
         expect(isStarosta(snake)).toBe(true);
+        expect(isStarosta(pascal)).toBe(true);
     });
 
     it("returns false for falsy flags", () => {
         expect(isStarosta({ ...baseUser, isStarosta: false })).toBe(false);
+    });
+
+    it("parses string flags safely", () => {
+        const truthy = { ...baseUser, isStarosta: "true" } as AuthUser & { isStarosta?: string };
+        const falsy = { ...baseUser, isStarosta: "false" } as AuthUser & { isStarosta?: string };
+
+        expect(isStarosta(truthy)).toBe(true);
+        expect(isStarosta(falsy)).toBe(false);
+    });
+
+    it("falls back to demo username", () => {
+        expect(isStarosta({ ...baseUser, username: "starosta" })).toBe(true);
+        expect(isStarosta({ ...baseUser, username: "STAROSTA" })).toBe(true);
     });
 });

@@ -13,11 +13,13 @@ import {
     finalApproveExamTerm,
     finalRejectExamTerm,
     fetchExamEvents,
+    rejectExamTermByLecturer,
     rejectExamTermByStarosta,
 } from "../../../api/exams";
-import { fetchExamSessions, type ExamSessionDto } from "../../../api/admin";
+import { fetchExamSessions, type ExamSessionDto, type ExamTermStatus } from "../../../api/admin";
 
-export type ExamStatus = "Proponowany" | "Czesciowo zatwierdzony" | "Zatwierdzony";
+export type ExamStatus = "Proponowany" | "Zatwierdzony" | "Odrzucony";
+export type { ExamTermStatus };
 
 export type ExamEvent = {
     id: string;
@@ -43,8 +45,8 @@ export type ExamEvent = {
     approvedByLecturer?: boolean;
     deanApproved?: boolean;
 
-    // status wyliczany z flag
-    status: ExamStatus;
+    // status terminu z backendu
+    status: ExamTermStatus;
 
     createdAtISO?: string;
 };
@@ -139,16 +141,62 @@ function addMinutesToTime(start: string, minutes: number): string {
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
-function recomputeStatus(e: ExamEvent): ExamStatus {
-    if ((e.approvedByStarosta && e.approvedByLecturer) || e.deanApproved) return "Zatwierdzony";
-    if (e.approvedByStarosta || e.approvedByLecturer) return "Czesciowo zatwierdzony";
+export function getStatusCategory(status: ExamTermStatus): ExamStatus {
+    if (status === "Approved" || status === "Finalized") return "Zatwierdzony";
+    if (status === "Rejected") return "Odrzucony";
     return "Proponowany";
 }
 
-function normalizeStatus(raw?: string | null): ExamStatus {
-    if (raw === "Zatwierdzony") return "Zatwierdzony";
-    if (raw === "Czesciowo zatwierdzony") return "Czesciowo zatwierdzony";
-    return "Proponowany";
+export function getStatusLabel(status: ExamTermStatus): string {
+    switch (status) {
+        case "ProposedByLecturer":
+            return "Proponowany (prowadzacy)";
+        case "ProposedByStudent":
+            return "Proponowany (starosta)";
+        case "Draft":
+            return "Szkic";
+        case "Conflict":
+            return "Konflikt";
+        case "Approved":
+            return "Zatwierdzony";
+        case "Finalized":
+            return "Zatwierdzony (finalny)";
+        case "Rejected":
+            return "Odrzucony";
+        default:
+            return "Proponowany";
+    }
+}
+
+export function isApprovedStatus(status: ExamTermStatus): boolean {
+    return status === "Approved" || status === "Finalized";
+}
+
+export function isStarostaApprovable(status: ExamTermStatus): boolean {
+    return status === "ProposedByLecturer";
+}
+
+export function isLecturerApprovable(status: ExamTermStatus): boolean {
+    return status === "ProposedByStudent";
+}
+
+function normalizeTermStatus(raw?: string | null): ExamTermStatus {
+    switch (raw) {
+        case "Draft":
+        case "ProposedByLecturer":
+        case "ProposedByStudent":
+        case "Conflict":
+        case "Approved":
+        case "Finalized":
+        case "Rejected":
+            return raw;
+        case "Zatwierdzony":
+            return "Approved";
+        case "Odrzucony":
+            return "Rejected";
+        default:
+            return "Draft";
+    }
 }
 
 function normalizeExam(e: ExamEvent): ExamEvent {
@@ -156,13 +204,7 @@ function normalizeExam(e: ExamEvent): ExamEvent {
     const approvedByLecturer = Boolean(e.approvedByLecturer);
     const deanApproved = Boolean(e.deanApproved);
     const normalizedTime = normalizeTimeToSlot(e.time);
-    const hasWorkflowFlags =
-        typeof e.approvedByStarosta !== "undefined" ||
-        typeof e.approvedByLecturer !== "undefined" ||
-        typeof e.deanApproved !== "undefined";
-    const status = hasWorkflowFlags
-        ? recomputeStatus({ ...e, approvedByStarosta, approvedByLecturer, deanApproved })
-        : normalizeStatus(e.status);
+    const status = normalizeTermStatus(e.status);
 
     return {
         ...e,
@@ -191,12 +233,7 @@ async function loadApiSession(): Promise<void> {
 
 async function loadApiEvents(token: string): Promise<void> {
     const apiEvents = await fetchExamEvents();
-    exams = apiEvents.map((e) =>
-        normalizeExam({
-            ...e,
-            status: normalizeStatus(e.status),
-        })
-    );
+    exams = apiEvents.map((e) => normalizeExam(e));
     loadedToken = token;
     notify();
 }
@@ -386,6 +423,11 @@ export async function approveByLecturer(id: string): Promise<void> {
     await refreshApiEvents();
 }
 
+export async function rejectByLecturer(id: string): Promise<void> {
+    await rejectExamTermByLecturer(id);
+    await refreshApiEvents();
+}
+
 /** Dziekanat finalnie zatwierdza (wtedy status zawsze Zatwierdzony) */
 export async function deanFinalApprove(id: string): Promise<void> {
     await finalApproveExamTerm(id);
@@ -442,7 +484,7 @@ export function exportExamDataToCSVString(rows?: ExamEvent[]): string {
             e.dateISO,
             e.time ?? "",
             e.room ?? "",
-            e.status,
+            getStatusLabel(e.status),
             e.approvedByStarosta ? "1" : "0",
             e.approvedByLecturer ? "1" : "0",
             e.deanApproved ? "1" : "0",
@@ -471,6 +513,7 @@ export function downloadExamCSV(filename = "egzaminy.csv", rows?: ExamEvent[]) {
 
 export const starostaApprove = approveByStarosta;
 export const lecturerApprove = approveByLecturer;
+export const lecturerReject = rejectByLecturer;
 export const deanApprove = deanFinalApprove;
 export const deanReject = deanFinalReject;
 export const starostaRejectAction = starostaReject;

@@ -1,10 +1,19 @@
 ﻿import { useMemo, useState } from "react";
-import { Filter } from "lucide-react";
-import { getVisibleExamEvents, type ExamStatus } from "../../exams/data/examStore";
+import { Check, Filter, X } from "lucide-react";
+import {
+    getStatusCategory,
+    getVisibleExamEvents,
+    isStarostaApprovable,
+    starostaApprove,
+    starostaReject,
+    type ExamStatus,
+    type ExamTermStatus,
+} from "../../exams/data/examStore";
 import { StatusBadge } from "../../exams/components/StatusBadge";
 import { useExamEvents } from "../../exams/hooks/useExamEvents";
 import { formatDatePLFromISO } from "../../exams/utils/date";
 import { useAuth } from "../../auth/hooks/useAuth";
+import { isStarosta } from "../../auth/utils/roles";
 import { useSessionPeriod } from "../../exams/hooks/useSessionPeriod";
 
 type Row = {
@@ -14,8 +23,34 @@ type Row = {
     date: string; // dd.MM.yyyy
     time: string; // HH:mm
     room: string;
-    status: ExamStatus;
+    status: ExamTermStatus;
 };
+
+type Toast = { type: "success" | "error"; message: string } | null;
+
+type ToastViewProps = {
+    toast: Toast;
+};
+
+function ToastView({ toast }: ToastViewProps) {
+    if (!toast) return null;
+
+    const base =
+        "fixed top-6 right-6 z-50 min-w-[320px] max-w-[520px] px-5 py-3 rounded-2xl border shadow-sm text-sm flex items-center gap-3";
+    const cls =
+        toast.type === "success"
+            ? `${base} bg-emerald-50 border-emerald-200 text-emerald-800`
+            : `${base} bg-red-50 border-red-200 text-red-800`;
+
+    return (
+        <div className={cls}>
+            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-white border">
+                {toast.type === "success" ? "OK" : "!"}
+            </span>
+            <div className="font-medium">{toast.message}</div>
+        </div>
+    );
+}
 
 export default function StudentSubjectsPage() {
     const { user } = useAuth();
@@ -24,6 +59,33 @@ export default function StudentSubjectsPage() {
 
     const [status, setStatus] = useState<"Wszystkie" | ExamStatus>("Wszystkie");
     const fallback = "Brak danych";
+    const [toast, setToast] = useState<Toast>(null);
+    const showActions = isStarosta(user);
+
+    function showToast(next: Toast) {
+        setToast(next);
+        window.setTimeout(() => setToast(null), 2500);
+    }
+
+    async function handleApprove(id: string) {
+        try {
+            await starostaApprove(id);
+            showToast({ type: "success", message: "Egzamin zostal zatwierdzony!" });
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie zatwierdzic egzaminu.";
+            showToast({ type: "error", message });
+        }
+    }
+
+    async function handleReject(id: string) {
+        try {
+            await starostaReject(id);
+            showToast({ type: "success", message: "Propozycja zostala odrzucona." });
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Nie udalo sie odrzucic propozycji.";
+            showToast({ type: "error", message });
+        }
+    }
 
     const visibleEvents = useMemo(
         () => getVisibleExamEvents(events, user, sessionPeriod),
@@ -46,12 +108,14 @@ export default function StudentSubjectsPage() {
 
     const filtered = useMemo(() => {
         let r = rows;
-        if (status !== "Wszystkie") r = r.filter((x) => x.status === status);
+        if (status !== "Wszystkie") r = r.filter((x) => getStatusCategory(x.status) === status);
         return r;
     }, [rows, status]);
+    const emptyColSpan = showActions ? 7 : 6;
 
     return (
         <div className="space-y-6">
+            <ToastView toast={toast} />
             {/* Filtry */}
             <div className="bg-white border rounded-2xl p-6">
                 <div className="flex items-center gap-2 text-slate-800 font-medium">
@@ -69,8 +133,8 @@ export default function StudentSubjectsPage() {
                         >
                             <option>Wszystkie</option>
                             <option>Zatwierdzony</option>
-                            <option>Czesciowo zatwierdzony</option>
                             <option>Proponowany</option>
+                            <option>Odrzucony</option>
                         </select>
                     </div>
                 </div>
@@ -92,13 +156,14 @@ export default function StudentSubjectsPage() {
                                 <th className="px-6 py-3 font-medium">Godzina</th>
                                 <th className="px-6 py-3 font-medium">Sala</th>
                                 <th className="px-6 py-3 font-medium">Status</th>
+                                {showActions && <th className="px-6 py-3 font-medium text-right">Akcje</th>}
                             </tr>
                         </thead>
 
                         <tbody>
                             {!loading && filtered.length === 0 && (
                                 <tr>
-                                    <td className="px-6 py-6 text-sm text-slate-600" colSpan={6}>
+                                    <td className="px-6 py-6 text-sm text-slate-600" colSpan={emptyColSpan}>
                                         Brak wynikow.
                                     </td>
                                 </tr>
@@ -114,6 +179,37 @@ export default function StudentSubjectsPage() {
                                     <td className="px-6 py-4">
                                         <StatusBadge status={r.status} />
                                     </td>
+                                    {showActions && (
+                                        <td className="px-6 py-4 text-right">
+                                            {isStarostaApprovable(r.status) ? (
+                                                <div className="inline-flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            void handleApprove(r.id);
+                                                        }}
+                                                        className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600"
+                                                        title="Zatwierdz"
+                                                    >
+                                                        <Check className="w-5 h-5" />
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            void handleReject(r.id);
+                                                        }}
+                                                        className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                                                        title="Odrzuc"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm text-slate-400">-</span>
+                                            )}
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -134,6 +230,28 @@ export default function StudentSubjectsPage() {
                             <div className="text-sm text-slate-700">
                                 {r.date} | {r.time || "-"} | {r.room || "-"}
                             </div>
+                            {showActions && isStarostaApprovable(r.status) && (
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            void handleApprove(r.id);
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold"
+                                    >
+                                        Zatwierdz
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            void handleReject(r.id);
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold"
+                                    >
+                                        Odrzuc
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

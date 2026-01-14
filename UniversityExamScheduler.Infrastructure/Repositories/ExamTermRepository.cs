@@ -26,9 +26,9 @@ public class ExamTermRepository : BaseRepository<ExamTerm>, IExamTermRepository
         IQueryable<ExamTerm> query = _set
             .AsNoTracking()
             .Include(t => t.Exam)
-                .ThenInclude(e => e.Group)
+                .ThenInclude(e => e!.Group)
             .Include(t => t.Exam)
-                .ThenInclude(e => e.Lecturer)
+                .ThenInclude(e => e!.Lecturer)
             .Include(t => t.Room);
 
         if (lecturerId.HasValue)

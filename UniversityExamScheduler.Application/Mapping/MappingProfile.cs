@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using AutoMapper;
 using UniversityExamScheduler.Application.Dtos.User.Request;
 using UniversityExamScheduler.Application.Dtos.User.Respone;
@@ -23,7 +24,13 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         CreateMap<CreateUserDto, User>();
-        CreateMap<User, GetUserDto>();
+        CreateMap<StudentGroup, GetUserStudentGroupDto>();
+        CreateMap<User, GetUserDto>()
+            .ForMember(dest => dest.StudentGroups, opt =>
+                opt.MapFrom(src =>
+                    src.GroupMemberships
+                        .Where(m => m.Group != null)
+                        .Select(m => m.Group!)));
         CreateMap<UpdateUserDto, User>();
 
         CreateMap<CreateStudentGroupDto, StudentGroup>();

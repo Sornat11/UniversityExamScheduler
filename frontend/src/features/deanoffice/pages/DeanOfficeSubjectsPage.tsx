@@ -1,6 +1,6 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import { Filter, Check, X } from "lucide-react";
-import { getVisibleExamEvents, type ExamStatus, deanFinalApprove, deanFinalReject } from "../../exams/data/examStore";
+﻿import { useMemo, useState } from "react";
+import { Filter } from "lucide-react";
+import { getStatusCategory, getVisibleExamEvents, type ExamStatus } from "../../exams/data/examStore";
 import { useExamEvents } from "../../exams/hooks/useExamEvents";
 import { StatusBadge } from "../../exams/components/StatusBadge";
 import { formatDatePLFromISO } from "../../exams/utils/date";
@@ -11,13 +11,6 @@ export default function DeanOfficeSubjectsPage() {
     const { user } = useAuth();
     const { events, loading } = useExamEvents();
     const sessionPeriod = useSessionPeriod();
-
-    const [toast, setToast] = useState<string | null>(null);
-    useEffect(() => {
-        if (!toast) return;
-        const t = setTimeout(() => setToast(null), 2500);
-        return () => clearTimeout(t);
-    }, [toast]);
 
     const [field, setField] = useState("Wszystkie");
     const [studyType, setStudyType] = useState("Wszystkie");
@@ -41,30 +34,8 @@ export default function DeanOfficeSubjectsPage() {
             time: e.time ?? fallback,
             room: e.room ?? fallback,
             datePL: formatDatePLFromISO(e.dateISO),
-            // dziekanat ma akcje tylko dla terminow oczekujacych finalnej decyzji
-            canFinalAction: e.status === "Czesciowo zatwierdzony",
         }));
     }, [visibleEvents]);
-
-    async function handleFinalApprove(id: string) {
-        try {
-            await deanFinalApprove(id);
-            setToast("Egzamin zostal zatwierdzony!");
-        } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : "Nie udalo sie zatwierdzic egzaminu.";
-            setToast(message);
-        }
-    }
-
-    async function handleFinalReject(id: string) {
-        try {
-            await deanFinalReject(id);
-            setToast("Egzamin zostal odrzucony!");
-        } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : "Nie udalo sie odrzucic egzaminu.";
-            setToast(message);
-        }
-    }
 
     const options = useMemo(() => {
         const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== fallback)));
@@ -78,18 +49,12 @@ export default function DeanOfficeSubjectsPage() {
         if (field !== "Wszystkie") r = r.filter((x) => normalize(x.fieldOfStudy) === normalize(field));
         if (studyType !== "Wszystkie") r = r.filter((x) => normalize(x.studyType) === normalize(studyType));
         if (year !== "Wszystkie") r = r.filter((x) => normalize(x.year) === normalize(year));
-        if (status !== "Wszystkie") r = r.filter((x) => x.status === status);
+        if (status !== "Wszystkie") r = r.filter((x) => getStatusCategory(x.status) === status);
         return r;
     }, [rows, field, studyType, year, status]);
 
     return (
         <div className="space-y-6">
-            {toast && (
-                <div className="fixed top-6 right-6 z-50 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 shadow">
-                    OK {toast}
-                </div>
-            )}
-
             <div className="bg-white border rounded-2xl p-6">
                 <div className="flex items-center gap-2 text-slate-800 font-medium">
                     <Filter className="w-4 h-4" /> Filtry
@@ -135,85 +100,57 @@ export default function DeanOfficeSubjectsPage() {
                         >
                             <option>Wszystkie</option>
                             <option>Zatwierdzony</option>
-                            <option>Czesciowo zatwierdzony</option>
                             <option>Proponowany</option>
+                            <option>Odrzucony</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white border rounded-2xl overflow-hidden">
-                <div className="px-6 py-4 border-b text-sm text-slate-600">
-                    {loading ? "Ladowanie..." : `Wyniki: ${filtered.length}`}
+            <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b bg-slate-50/80">
+                    <span className="inline-flex items-center rounded-full border bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                        {loading ? "Ladowanie..." : `Wyniki: ${filtered.length}`}
+                    </span>
                 </div>
 
-                <div>
-                    <table className="w-full">
-                        <thead className="bg-neutral-50 border-b">
-                            <tr className="text-left text-sm text-slate-600">
-                                <th className="px-6 py-3 font-medium">Przedmiot</th>
-                                <th className="px-6 py-3 font-medium">Kierunek</th>
-                                <th className="px-6 py-3 font-medium">Typ</th>
-                                <th className="px-6 py-3 font-medium">Rok</th>
-                                <th className="px-6 py-3 font-medium">Prowadzacy</th>
-                                <th className="px-6 py-3 font-medium">Data</th>
-                                <th className="px-6 py-3 font-medium">Godzina</th>
-                                <th className="px-6 py-3 font-medium">Sala</th>
-                                <th className="px-6 py-3 font-medium">Status</th>
-                                <th className="px-6 py-3 font-medium text-right">Akcje</th>
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px]">
+                        <thead className="bg-slate-50/80 border-b">
+                            <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                                <th className="px-6 py-3 font-semibold">Przedmiot</th>
+                                <th className="px-6 py-3 font-semibold">Kierunek</th>
+                                <th className="px-6 py-3 font-semibold">Typ</th>
+                                <th className="px-6 py-3 font-semibold">Rok</th>
+                                <th className="px-6 py-3 font-semibold">Prowadzacy</th>
+                                <th className="px-6 py-3 font-semibold whitespace-nowrap">Data</th>
+                                <th className="px-6 py-3 font-semibold whitespace-nowrap">Godzina</th>
+                                <th className="px-6 py-3 font-semibold whitespace-nowrap">Sala</th>
+                                <th className="px-6 py-3 font-semibold">Status</th>
                             </tr>
                         </thead>
 
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100">
                             {!loading && filtered.length === 0 && (
                                 <tr>
-                                    <td className="px-6 py-6 text-sm text-slate-600" colSpan={10}>
+                                    <td className="px-6 py-6 text-sm text-slate-600" colSpan={9}>
                                         Brak wynikow.
                                     </td>
                                 </tr>
                             )}
 
                             {filtered.map((r) => (
-                                <tr key={r.id} className="border-b last:border-b-0">
-                                    <td className="px-6 py-4 text-sm text-slate-900">{r.title}</td>
+                                <tr key={r.id} className="transition-colors hover:bg-slate-50/70">
+                                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{r.title}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700">{r.fieldOfStudy}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700">{r.studyType}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{r.year}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.year}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700">{r.lecturer}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{r.datePL}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{r.time}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700">{r.room}</td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.datePL}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.time}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.room}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <StatusBadge status={r.status} />
-                                    </td>
-
-                                    <td className="px-6 py-4 text-right">
-                                        {r.canFinalAction ? (
-                                            <div className="inline-flex items-center gap-3">
-                                                <button
-                                                    type="button"
-                                                    className="text-emerald-600 hover:text-emerald-700"
-                                                    title="Zatwierdz"
-                                                    onClick={() => {
-                                                        void handleFinalApprove(r.id);
-                                                    }}
-                                                >
-                                                    <Check className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="text-red-500 hover:text-red-600"
-                                                    title="Odrzuc"
-                                                    onClick={() => {
-                                                        void handleFinalReject(r.id);
-                                                    }}
-                                                >
-                                                    <X className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-slate-300">-</span>
-                                        )}
                                     </td>
                                 </tr>
                             ))}

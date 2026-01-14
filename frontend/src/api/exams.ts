@@ -1,4 +1,5 @@
 import { authHeaders } from "./client";
+import type { ExamTermStatus } from "./admin";
 
 export type ExamTermDto = {
     id: string;
@@ -48,7 +49,7 @@ export type ExamEventDto = {
     year?: string;
     groupId?: string;
     groupName?: string;
-    status: string;
+    status: ExamTermStatus;
 };
 
 export async function fetchExamTerms(courseId?: string): Promise<ExamTermDto[]> {
