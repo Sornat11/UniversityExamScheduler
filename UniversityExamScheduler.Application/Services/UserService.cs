@@ -11,6 +11,7 @@ namespace UniversityExamScheduler.Application.Services;
 public interface IUserService
 {
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<User?> GetByIdWithGroupsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<IEnumerable<User>> ListAsync(CancellationToken cancellationToken = default);
     Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default);
@@ -32,6 +33,9 @@ public class UserService : IUserService
 
     public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         _uow.Users.GetByIdAsync(id);
+
+    public Task<User?> GetByIdWithGroupsAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _uow.Users.GetByIdWithGroupsAsync(id, cancellationToken);
 
     public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
         _uow.Users.GetByEmailAsync(email, cancellationToken);

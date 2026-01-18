@@ -12,6 +12,12 @@ public class UserRepository : BaseRepository<User>, IUserRepository
 {
     public UserRepository(ApplicationDbContext context) : base(context) { }
 
+    public Task<User?> GetByIdWithGroupsAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _set
+            .Include(u => u.GroupMemberships)
+            .ThenInclude(m => m.Group)
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+
     public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
         _set
             .Include(u => u.GroupMemberships)

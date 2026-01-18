@@ -79,8 +79,8 @@ export default function StudentShell({ userName, role, onLogout, children }: Pro
 
     return (
         <div className="min-h-screen bg-neutral-50">
-            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-                <header className="bg-white border rounded-2xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <div className="max-w-screen-2xl mx-auto px-4 py-6 space-y-6">
+                <header className="bg-white border rounded-2xl px-4 py-3 w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <NavLink
                         to={profilePath}
                         end
@@ -99,7 +99,7 @@ export default function StudentShell({ userName, role, onLogout, children }: Pro
                         </div>
                     </NavLink>
                 </header>
-                <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+                <div className="grid w-full grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
                     {/* SIDEBAR */}
                     <aside className="bg-white border rounded-2xl p-4 h-fit lg:sticky lg:top-6">
                         <div className="px-2 pb-4 border-b">
@@ -167,7 +167,7 @@ export default function StudentShell({ userName, role, onLogout, children }: Pro
                     </aside>
 
                     {/* MAIN */}
-                    <main className="bg-white border rounded-2xl p-6">
+                    <main className="bg-white border rounded-2xl p-6 min-w-0">
                         <div className="mb-5">
                             <div className="text-slate-900 font-semibold text-xl">{pageTitle}</div>
                         </div>

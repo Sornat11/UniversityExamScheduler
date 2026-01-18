@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using UniversityExamScheduler.Application.Services;
@@ -26,12 +28,23 @@ public class AuthController : ControllerBase
 
     public record LoginRequest(string Username, string Password);
 
+    public record UserStudentGroupDto(
+        Guid Id,
+        string Name,
+        string FieldOfStudy,
+        StudyType StudyType,
+        int Semester
+    );
+
     public record UserDto(
         string Username,
         Role Role,
         bool IsStarosta,
         string? FirstName,
-        string? LastName
+        string? LastName,
+        string? Email,
+        bool IsActive,
+        IReadOnlyCollection<UserStudentGroupDto> StudentGroups
     );
 
     public record LoginResponse(
@@ -174,7 +187,7 @@ public class AuthController : ControllerBase
         var rawId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (Guid.TryParse(rawId, out var userId))
         {
-            dbUser = await _userService.GetByIdAsync(userId, cancellationToken);
+            dbUser = await _userService.GetByIdWithGroupsAsync(userId, cancellationToken);
             if (dbUser is not null)
             {
                 role = dbUser.Role;
@@ -191,8 +204,11 @@ public class AuthController : ControllerBase
         return Ok(BuildUser(username, role, isStarosta, dbUser));
     }
 
-    private static UserDto BuildUser(string username, Role role, bool isStarosta, User? dbUser) =>
-        new(
+    private static UserDto BuildUser(string username, Role role, bool isStarosta, User? dbUser)
+    {
+        var email = dbUser?.Email ?? ResolveDemoEmail(username);
+        var groups = MapGroups(dbUser);
+        return new UserDto(
             Username: username,
             Role: role,
             IsStarosta: isStarosta,
@@ -212,8 +228,26 @@ public class AuthController : ControllerBase
                 "prowadzacy" => "Nowak",
                 "dziekanat" => "Wisniewska",
                 _ => null
-            }
+            },
+            Email: email,
+            IsActive: dbUser?.IsActive ?? true,
+            StudentGroups: groups
         );
+    }
+
+    private static IReadOnlyCollection<UserStudentGroupDto> MapGroups(User? dbUser)
+    {
+        if (dbUser?.GroupMemberships is null || dbUser.GroupMemberships.Count == 0)
+        {
+            return Array.Empty<UserStudentGroupDto>();
+        }
+
+        return dbUser.GroupMemberships
+            .Where(m => m.Group != null)
+            .Select(m => m.Group!)
+            .Select(g => new UserStudentGroupDto(g.Id, g.Name, g.FieldOfStudy, g.StudyType, g.Semester))
+            .ToList();
+    }
 
     private static string? ResolveDemoEmail(string username) =>
         username switch

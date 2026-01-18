@@ -11,22 +11,46 @@ function formatRole(role: unknown) {
     return raw;
 }
 
+function formatValue(value: string | number | null | undefined) {
+    if (value === null || value === undefined || value === "") return "Brak danych";
+    return String(value);
+}
+
+function formatYesNo(value: boolean | undefined) {
+    if (value === true) return "Tak";
+    if (value === false) return "Nie";
+    return "Brak danych";
+}
+
+function semesterToYear(semester?: number | null) {
+    if (!semester || semester <= 0) return null;
+    return Math.max(1, Math.ceil(semester / 2));
+}
+
 export default function UserProfilePage() {
     const { user } = useAuth();
-
-    const fullName = useMemo(() => {
-        const parts = [user?.firstName, user?.lastName].filter(Boolean);
-        return parts.join(" ");
-    }, [user?.firstName, user?.lastName]);
+    const studentGroups = user?.studentGroups ?? [];
+    const primaryGroup = studentGroups[0];
+    const studyField = primaryGroup?.fieldOfStudy;
+    const studyType = primaryGroup?.studyType;
+    const year = semesterToYear(primaryGroup?.semester);
+    const groupNames = studentGroups.map((group) => group.name).filter(Boolean).join(", ");
 
     const profileRows = useMemo(
         () => [
             { label: "Uzytkownik", value: user?.username ?? "Brak danych" },
-            { label: "Imie i nazwisko", value: fullName || "Brak danych" },
+            { label: "Imie", value: formatValue(user?.firstName) },
+            { label: "Nazwisko", value: formatValue(user?.lastName) },
             { label: "Rola", value: formatRole(user?.role) },
+            { label: "Email", value: formatValue(user?.email) },
+            { label: "Studia", value: formatValue(studyField) },
+            { label: "Rok studiow", value: year ? String(year) : "Brak danych" },
+            { label: "Tryb studiow", value: formatValue(studyType) },
+            { label: "Aktywny", value: formatYesNo(user?.isActive) },
+            { label: "Grupa", value: groupNames || "Brak danych" },
             { label: "Funkcja", value: isStarosta(user) ? "Starosta" : "Brak danych" },
         ],
-        [fullName, user]
+        [groupNames, studyField, studyType, user, year]
     );
 
     return (
