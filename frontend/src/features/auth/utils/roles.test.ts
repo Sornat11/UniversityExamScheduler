@@ -28,6 +28,7 @@ describe("normalizeRole", () => {
 
 describe("isStarosta", () => {
     const baseUser: AuthUser = { username: "alice", role: "Student" };
+    type StarostaStringUser = Omit<AuthUser, "isStarosta"> & { isStarosta?: string };
 
     it("returns false when user is null", () => {
         expect(isStarosta(null)).toBe(false);
@@ -50,8 +51,8 @@ describe("isStarosta", () => {
     });
 
     it("parses string flags safely", () => {
-        const truthy = { ...baseUser, isStarosta: "true" } as AuthUser & { isStarosta?: string };
-        const falsy = { ...baseUser, isStarosta: "false" } as AuthUser & { isStarosta?: string };
+        const truthy = { ...baseUser, isStarosta: "true" } as StarostaStringUser;
+        const falsy = { ...baseUser, isStarosta: "false" } as StarostaStringUser;
 
         expect(isStarosta(truthy)).toBe(true);
         expect(isStarosta(falsy)).toBe(false);

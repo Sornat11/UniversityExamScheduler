@@ -2,6 +2,13 @@ import type { AuthUser, Role } from "../types/auth";
 
 const ROLES: Role[] = ["Student", "Lecturer", "DeanOffice", "Admin"];
 
+type AuthUserLike = Omit<AuthUser, "isStarosta"> & {
+    isStarosta?: unknown;
+    IsStarosta?: unknown;
+    isStarost?: unknown;
+    is_starosta?: unknown;
+};
+
 export function normalizeRole(role: unknown): Role | null {
     if (typeof role === "number") {
         return ROLES[role] ?? null;
@@ -38,15 +45,9 @@ function getStarostaFromToken(): boolean | null {
     }
 }
 
-export function isStarosta(user: AuthUser | null): boolean {
+export function isStarosta(user: AuthUserLike | null): boolean {
     if (!user) return false;
-    const flags = user as AuthUser & {
-        isStarosta?: unknown;
-        IsStarosta?: unknown;
-        isStarost?: unknown;
-        is_starosta?: unknown;
-    };
-    const raw = flags.isStarosta ?? flags.IsStarosta ?? flags.isStarost ?? flags.is_starosta;
+    const raw = user.isStarosta ?? user.IsStarosta ?? user.isStarost ?? user.is_starosta;
     if (typeof raw === "string") return raw.trim().toLowerCase() === "true";
     if (typeof raw === "number") return raw === 1;
     if (typeof raw === "boolean") return raw;

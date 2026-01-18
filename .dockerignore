@@ -1,0 +1,15 @@
+.git
+.gitignore
+.github
+.env
+.vscode
+.vs
+**/.DS_Store
+**/node_modules
+frontend/dist
+**/bin
+**/obj
+**/TestResults
+**/*.user
+**/*.suo
+**/*.log
