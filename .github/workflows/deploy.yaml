@@ -4,6 +4,11 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+    branches: ["main"]
+
+permissions:
+  actions: read
+  contents: read
 
 jobs:
   deploy:
@@ -16,6 +21,8 @@ jobs:
         with:
           name: ues-publish
           path: publish
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload files to server (scp)
         uses: appleboy/scp-action@v0.1.7

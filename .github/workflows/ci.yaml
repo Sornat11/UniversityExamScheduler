@@ -11,6 +11,7 @@ jobs:
 
     env:
       FRONTEND_DIR: frontend
+      BACKEND_DIR: UniversityExamScheduler.WebApi
       BACKEND_CSPROJ: UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj
       PUBLISH_DIR: publish
 
@@ -36,9 +37,9 @@ jobs:
 
       - name: Copy dist -> backend wwwroot
         run: |
-          rm -rf UniversityExamScheduler.Api/wwwroot || true
-          mkdir -p UniversityExamScheduler.Api/wwwroot
-          cp -r frontend/dist/* UniversityExamScheduler.Api/wwwroot/
+          rm -rf ${{ env.BACKEND_DIR }}/wwwroot || true
+          mkdir -p ${{ env.BACKEND_DIR }}/wwwroot
+          cp -r ${{ env.FRONTEND_DIR }}/dist/* ${{ env.BACKEND_DIR }}/wwwroot/
 
       # ---------- BACKEND ----------
       - name: Setup .NET

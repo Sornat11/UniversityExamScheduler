@@ -106,6 +106,17 @@ export default function DeanOfficePanelPage() {
 
 
     const lecturerOptions = useMemo(() => people.filter((p) => normalizeRole(p.role) === "Lecturer"), [people]);
+    const lecturerLabelById = useMemo(() => {
+        const map = new Map<string, string>();
+        people.forEach((p) => {
+            const first = p.firstName?.trim();
+            const last = p.lastName?.trim();
+            const label = [first, last].filter(Boolean).join(" ").trim();
+            if (label) map.set(p.id, label);
+        });
+        return map;
+    }, [people]);
+    const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
 
     const showError = useCallback((message: string) => {
         setError(message);
@@ -148,9 +159,21 @@ export default function DeanOfficePanelPage() {
 
     const loadReferenceData = useCallback(async () => {
         try {
-            const [groupsRes, usersRes] = await Promise.all([fetchStudentGroups(), searchUsers({ page: 1, pageSize: 100 })]);
+            const pageSize = 100;
+            const firstPage = await searchUsers({ page: 1, pageSize });
+            const totalPages = Math.ceil(firstPage.totalCount / firstPage.pageSize);
+            const otherPages =
+                totalPages > 1
+                    ? await Promise.all(
+                          Array.from({ length: totalPages - 1 }, (_, idx) =>
+                              searchUsers({ page: idx + 2, pageSize })
+                          )
+                      )
+                    : [];
+            const allUsers = [firstPage, ...otherPages].flatMap((res) => res.items);
+            const groupsRes = await fetchStudentGroups();
             setGroups(groupsRes);
-            setPeople(usersRes.items);
+            setPeople(allUsers);
         } catch (e: unknown) {
             showError(getErrorMessage(e, "Nie udalo sie pobrac slownikow."));
         }
@@ -640,21 +663,30 @@ export default function DeanOfficePanelPage() {
                                 <div className="text-sm text-slate-600">Brak przedmiotow.</div>
                             )}
                             <div className="space-y-2">
-                                {exams.map((ex) => (
-                                    <div key={ex.id} className="border rounded-lg px-3 py-2 flex items-center justify-between">
-                                        <div className="text-left">
-                                            <div className="font-semibold text-slate-900">{ex.name}</div>
-                                            <div className="text-xs text-slate-600">ID: {ex.id}</div>
+                                {exams.map((ex) => {
+                                    const lecturerName = lecturerLabelById.get(ex.lecturerId) ?? "Brak prowadzacego";
+                                    const group = groupById.get(ex.groupId);
+                                    const year = group ? Math.max(1, Math.ceil(group.semester / 2)) : null;
+                                    const groupInfo = group
+                                        ? `${group.fieldOfStudy} - Rok ${year}, sem. ${group.semester}`
+                                        : "Brak przypisanej grupy";
+                                    return (
+                                        <div key={ex.id} className="border rounded-lg px-3 py-2 flex items-center justify-between">
+                                            <div className="text-left">
+                                                <div className="font-semibold text-slate-900">{ex.name}</div>
+                                                <div className="text-xs text-slate-600">Prowadzacy: {lecturerName}</div>
+                                                <div className="text-xs text-slate-600">{groupInfo}</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="text-red-600"
+                                                onClick={() => handleExamDelete(ex.id)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            className="text-red-600"
-                                            onClick={() => handleExamDelete(ex.id)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

@@ -77,6 +77,33 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task AddAsync_WhenValid_AddsAndSaves()
+    {
+        var (uow, userRepo) = BuildUow();
+        var dto = CreateValidCreateDto();
+
+        userRepo
+            .Setup(x => x.GetByEmailAsync(dto.Email, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        var service = new UserService(uow.Object, CreateMapper());
+
+        var result = await service.AddAsync(dto);
+
+        result.Id.Should().NotBe(Guid.Empty);
+        result.Email.Should().Be(dto.Email);
+
+        userRepo.Verify(x => x.AddAsync(It.Is<User>(u =>
+            u.Email == dto.Email &&
+            u.FirstName == dto.FirstName &&
+            u.LastName == dto.LastName &&
+            u.Role == dto.Role &&
+            u.IsStarosta == dto.IsStarosta &&
+            u.IsActive == dto.IsActive), It.IsAny<CancellationToken>()), Times.Once);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task RemoveAsync_WhenLastDeanOffice_ThrowsBusinessRuleException()
     {
         var (uow, userRepo) = BuildUow();
@@ -96,6 +123,43 @@ public class UserServiceTests
 
         await act.Should().ThrowAsync<BusinessRuleException>()
             .WithMessage("Cannot remove the last user with the DeanOffice role.");
+    }
+
+    [Fact]
+    public async Task RemoveAsync_WhenMissing_ThrowsEntityNotFoundException()
+    {
+        var (uow, userRepo) = BuildUow();
+        var userId = Guid.NewGuid();
+
+        userRepo
+            .Setup(x => x.GetByIdAsync(userId))
+            .ReturnsAsync((User?)null);
+
+        var service = new UserService(uow.Object, CreateMapper());
+
+        Func<Task> act = () => service.RemoveAsync(userId);
+
+        await act.Should().ThrowAsync<EntityNotFoundException>()
+            .WithMessage($"User with ID '{userId}' not found.");
+    }
+
+    [Fact]
+    public async Task RemoveAsync_WhenValid_RemovesAndSaves()
+    {
+        var (uow, userRepo) = BuildUow();
+        var userId = Guid.NewGuid();
+        var existing = new User { Id = userId, Role = Role.Student };
+
+        userRepo
+            .Setup(x => x.GetByIdAsync(userId))
+            .ReturnsAsync(existing);
+
+        var service = new UserService(uow.Object, CreateMapper());
+
+        await service.RemoveAsync(userId);
+
+        userRepo.Verify(x => x.RemoveAsync(existing, It.IsAny<CancellationToken>()), Times.Once);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -154,5 +218,66 @@ public class UserServiceTests
 
         await act.Should().ThrowAsync<BusinessRuleException>()
             .WithMessage("Only students can be marked as starosta.");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenMissing_ThrowsEntityNotFoundException()
+    {
+        var (uow, userRepo) = BuildUow();
+        var userId = Guid.NewGuid();
+        var dto = new UpdateUserDto
+        {
+            Email = "user@example.com",
+            FirstName = "Piotr",
+            LastName = "Zielinski",
+            Role = Role.Student,
+            IsStarosta = false,
+            IsActive = true
+        };
+
+        userRepo
+            .Setup(x => x.GetByIdAsync(userId))
+            .ReturnsAsync((User?)null);
+
+        var service = new UserService(uow.Object, CreateMapper());
+
+        Func<Task> act = () => service.UpdateAsync(userId, dto);
+
+        await act.Should().ThrowAsync<EntityNotFoundException>()
+            .WithMessage($"User with ID '{userId}' not found.");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenValid_UpdatesAndSaves()
+    {
+        var (uow, userRepo) = BuildUow();
+        var userId = Guid.NewGuid();
+        var dto = new UpdateUserDto
+        {
+            Email = "user@example.com",
+            FirstName = "Piotr",
+            LastName = "Zielinski",
+            Role = Role.Student,
+            IsStarosta = false,
+            IsActive = true
+        };
+
+        userRepo
+            .Setup(x => x.GetByIdAsync(userId))
+            .ReturnsAsync(new User { Id = userId, Role = Role.Student });
+
+        var service = new UserService(uow.Object, CreateMapper());
+
+        await service.UpdateAsync(userId, dto);
+
+        userRepo.Verify(x => x.UpdateAsync(It.Is<User>(u =>
+            u.Id == userId &&
+            u.Email == dto.Email &&
+            u.FirstName == dto.FirstName &&
+            u.LastName == dto.LastName &&
+            u.Role == dto.Role &&
+            u.IsStarosta == dto.IsStarosta &&
+            u.IsActive == dto.IsActive), It.IsAny<CancellationToken>()), Times.Once);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

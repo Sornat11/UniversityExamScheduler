@@ -10,10 +10,11 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS be
 WORKDIR /src
 COPY . .
+COPY --from=fe /src/frontend/dist /src/frontend/dist
 
-RUN rm -rf UniversityExamScheduler.Api/wwwroot || true \
- && mkdir -p UniversityExamScheduler.Api/wwwroot \
- && cp -r /src/frontend/dist/* UniversityExamScheduler.Api/wwwroot/
+RUN rm -rf UniversityExamScheduler.WebApi/wwwroot || true \
+ && mkdir -p UniversityExamScheduler.WebApi/wwwroot \
+ && cp -r /src/frontend/dist/* UniversityExamScheduler.WebApi/wwwroot/
 
 RUN dotnet publish UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj -c Release -o /app/publish
 
@@ -23,4 +24,4 @@ WORKDIR /app
 COPY --from=be /app/publish .
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "UniversityExamScheduler.Api.dll"]
+ENTRYPOINT ["dotnet", "UniversityExamScheduler.WebApi.dll"]

@@ -126,6 +126,26 @@ public class ExamTermServiceTests
     }
 
     [Fact]
+    public async Task AddAsync_WhenSessionMissing_ThrowsEntityNotFoundException()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var sessionId = Guid.NewGuid();
+        var (uow, _, sessionRepo) = BuildUow();
+
+        sessionRepo
+            .Setup(x => x.GetByIdAsync(sessionId))
+            .ReturnsAsync((ExamSession?)null);
+
+        var service = new ExamTermService(uow.Object, CreateMapper());
+        var dto = CreateValidDto(sessionId, today.AddDays(1));
+
+        Func<Task> act = () => service.AddAsync(dto);
+
+        await act.Should().ThrowAsync<EntityNotFoundException>()
+            .WithMessage($"Exam session with ID '{sessionId}' not found.");
+    }
+
+    [Fact]
     public async Task AddAsync_WhenValid_AddsTermAndSaves()
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
@@ -227,6 +247,43 @@ public class ExamTermServiceTests
             t.Status == dto.Status &&
             t.Type == dto.Type &&
             t.RejectionReason == dto.RejectionReason), It.IsAny<CancellationToken>()), Times.Once);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenMissing_ThrowsEntityNotFoundException()
+    {
+        var termId = Guid.NewGuid();
+        var (uow, termRepo, _) = BuildUow();
+
+        termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync((ExamTerm?)null);
+
+        var service = new ExamTermService(uow.Object, CreateMapper());
+
+        Func<Task> act = () => service.UpdateStatusAsync(termId, ExamTermStatus.Approved, null);
+
+        await act.Should().ThrowAsync<EntityNotFoundException>()
+            .WithMessage($"Exam term with ID '{termId}' not found.");
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenValid_UpdatesAndSaves()
+    {
+        var termId = Guid.NewGuid();
+        var (uow, termRepo, _) = BuildUow();
+        var existing = new ExamTerm { Id = termId, Status = ExamTermStatus.Draft };
+        var rejectionReason = "Brak wolnej sali.";
+
+        termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync(existing);
+
+        var service = new ExamTermService(uow.Object, CreateMapper());
+
+        await service.UpdateStatusAsync(termId, ExamTermStatus.Rejected, rejectionReason);
+
+        termRepo.Verify(x => x.UpdateAsync(It.Is<ExamTerm>(t =>
+            t.Id == termId &&
+            t.Status == ExamTermStatus.Rejected &&
+            t.RejectionReason == rejectionReason), It.IsAny<CancellationToken>()), Times.Once);
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
