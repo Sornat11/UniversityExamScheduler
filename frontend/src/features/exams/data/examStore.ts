@@ -10,11 +10,17 @@ import {
     approveExamTermByLecturer,
     approveExamTermByStarosta,
     createExamTerm,
+    deleteExamTermByLecturer,
+    deleteExamTermByStarosta,
     finalApproveExamTerm,
     finalRejectExamTerm,
     fetchExamEvents,
     rejectExamTermByLecturer,
     rejectExamTermByStarosta,
+    updateExamTermByLecturer,
+    updateExamTermByStarosta,
+    type ExamTermType,
+    type UpdateExamTermPayload,
 } from "../../../api/exams";
 import { fetchExamSessions, type ExamSessionDto, type ExamTermStatus } from "../../../api/admin";
 
@@ -23,11 +29,16 @@ export type { ExamTermStatus };
 
 export type ExamEvent = {
     id: string;
+    courseId?: string;
+    sessionId?: string;
+    roomId?: string | null;
+    type?: ExamTermType;
 
     // glowne pola
     title: string;
     dateISO: string; // YYYY-MM-DD
-    time?: string; // HH:mm
+    time?: string; // HH:mm (start)
+    endTime?: string; // HH:mm (end)
     room?: string;
 
     // kontekst (do tabeli)
@@ -80,6 +91,15 @@ export type ProposeExamTermInput = {
 
     // opcjonalnie kto stworzyl propozycje (nie jest wymagane do dzialania)
     proposer?: "Student" | "Starosta" | "Lecturer" | "DeanOffice";
+};
+
+export type UpdateApprovedExamTermInput = {
+    sessionId: string;
+    roomId?: string | null;
+    dateISO: string;
+    startTime: string;
+    endTime?: string;
+    type: ExamTermType;
 };
 
 // -----------------------------
@@ -154,9 +174,9 @@ export function getStatusLabel(status: ExamTermStatus): string {
         case "ProposedByStudent":
             return "Proponowany (starosta)";
         case "Draft":
-            return "Szkic";
+            return "Proponowany";
         case "Conflict":
-            return "Konflikt";
+            return "Proponowany";
         case "Approved":
             return "Zatwierdzony";
         case "Finalized":
@@ -180,23 +200,55 @@ export function isLecturerApprovable(status: ExamTermStatus): boolean {
     return status === "ProposedByStudent";
 }
 
-function normalizeTermStatus(raw?: string | null): ExamTermStatus {
-    switch (raw) {
+export function isLecturerDeletable(status: ExamTermStatus): boolean {
+    return status === "ProposedByLecturer";
+}
+
+export function isStarostaDeletable(status: ExamTermStatus): boolean {
+    return status === "ProposedByStudent";
+}
+
+export function isEditableApprovedStatus(status: ExamTermStatus): boolean {
+    return status === "Approved";
+}
+
+export function normalizeTermStatus(raw?: string | null): ExamTermStatus {
+    if (!raw) return "Draft";
+    const s = String(raw).trim();
+
+    // direct matches (case-sensitive and expected values)
+    switch (s) {
         case "Draft":
+        case "Conflict":
+            return "Draft";
         case "ProposedByLecturer":
         case "ProposedByStudent":
-        case "Conflict":
+            return s as ExamTermStatus;
         case "Approved":
         case "Finalized":
         case "Rejected":
-            return raw;
+            return s as ExamTermStatus;
         case "Zatwierdzony":
             return "Approved";
         case "Odrzucony":
             return "Rejected";
-        default:
-            return "Draft";
     }
+
+    // fallback: try case-insensitive / trimmed variants
+    const lower = s.toLowerCase();
+    if (lower === "proposedbylecturer") return "ProposedByLecturer";
+    if (lower === "proposedbystudent") return "ProposedByStudent";
+    if (lower === "approved" || lower === "zatwierdzony") return "Approved";
+    if (lower === "finalized") return "Finalized";
+    if (lower === "rejected" || lower === "odrzucony") return "Rejected";
+    if (lower === "conflict") return "Conflict";
+
+    return "Draft";
+}
+
+function getTermStatusById(id: string): ExamTermStatus | null {
+    const term = exams.find((e) => e.id === id);
+    return term ? term.status : null;
 }
 
 function normalizeExam(e: ExamEvent): ExamEvent {
@@ -204,6 +256,9 @@ function normalizeExam(e: ExamEvent): ExamEvent {
     const approvedByLecturer = Boolean(e.approvedByLecturer);
     const deanApproved = Boolean(e.deanApproved);
     const normalizedTime = normalizeTimeToSlot(e.time);
+    const normalizedEndTime =
+        normalizeTimeToSlot(e.endTime) ??
+        (normalizedTime ? addMinutesToTime(normalizedTime, DEFAULT_TERM_MINUTES) : undefined);
     const status = normalizeTermStatus(e.status);
 
     return {
@@ -212,6 +267,7 @@ function normalizeExam(e: ExamEvent): ExamEvent {
         approvedByLecturer,
         deanApproved,
         time: normalizedTime,
+        endTime: normalizedEndTime,
         status,
     };
 }
@@ -384,7 +440,7 @@ export function setSessionPeriod(startISO: string, endISO: string) {
 // -----------------------------
 
 /** Dodanie propozycji terminu (starosta/Prowadzacy) */
-export async function proposeExamTerm(input: ProposeExamTermInput): Promise<void> {
+export async function proposeExamTerm(input: ProposeExamTermInput): Promise<ExamTermStatus | null> {
     const courseId = input.courseId;
     const sessionId = input.sessionId;
     const startTime = toApiTime(input.startTime ?? input.time);
@@ -398,7 +454,7 @@ export async function proposeExamTerm(input: ProposeExamTermInput): Promise<void
         throw new Error("Brak godziny zakonczenia.");
     }
 
-    await createExamTerm({
+    const created = await createExamTerm({
         courseId,
         sessionId,
         roomId: input.roomId ?? null,
@@ -409,40 +465,93 @@ export async function proposeExamTerm(input: ProposeExamTermInput): Promise<void
     });
 
     await refreshApiEvents();
+    return getTermStatusById(created.id) ?? normalizeTermStatus(created.status);
+}
+
+function buildUpdatePayload(input: UpdateApprovedExamTermInput): UpdateExamTermPayload {
+    const startTime = toApiTime(input.startTime);
+    if (!startTime) {
+        throw new Error("Brak godziny rozpoczecia.");
+    }
+
+    const startSlot = startTime.slice(0, 5);
+    const endTime = toApiTime(input.endTime ?? addMinutesToTime(startSlot, DEFAULT_TERM_MINUTES));
+    if (!endTime) {
+        throw new Error("Brak godziny zakonczenia.");
+    }
+
+    return {
+        sessionId: input.sessionId,
+        roomId: input.roomId ?? null,
+        date: input.dateISO,
+        startTime,
+        endTime,
+        type: input.type,
+    };
+}
+
+export async function editApprovedByLecturer(id: string, input: UpdateApprovedExamTermInput): Promise<ExamTermStatus | null> {
+    const payload = buildUpdatePayload(input);
+    await updateExamTermByLecturer(id, payload);
+    await refreshApiEvents();
+    return getTermStatusById(id);
+}
+
+export async function editApprovedByStarosta(id: string, input: UpdateApprovedExamTermInput): Promise<ExamTermStatus | null> {
+    const payload = buildUpdatePayload(input);
+    await updateExamTermByStarosta(id, payload);
+    await refreshApiEvents();
+    return getTermStatusById(id);
+}
+
+export async function deleteProposalByLecturer(id: string): Promise<void> {
+    await deleteExamTermByLecturer(id);
+    await refreshApiEvents();
+}
+
+export async function deleteProposalByStarosta(id: string): Promise<void> {
+    await deleteExamTermByStarosta(id);
+    await refreshApiEvents();
 }
 
 /** Starosta akceptuje propozycje */
-export async function approveByStarosta(id: string): Promise<void> {
+export async function approveByStarosta(id: string): Promise<ExamTermStatus | null> {
     await approveExamTermByStarosta(id);
     await refreshApiEvents();
+    return getTermStatusById(id);
 }
 
 /** Prowadzacy akceptuje propozycje */
-export async function approveByLecturer(id: string): Promise<void> {
+export async function approveByLecturer(id: string): Promise<ExamTermStatus | null> {
     await approveExamTermByLecturer(id);
     await refreshApiEvents();
+    return getTermStatusById(id);
 }
 
-export async function rejectByLecturer(id: string): Promise<void> {
+export async function rejectByLecturer(id: string): Promise<ExamTermStatus | null> {
     await rejectExamTermByLecturer(id);
     await refreshApiEvents();
+    return getTermStatusById(id);
 }
 
 /** Dziekanat finalnie zatwierdza (wtedy status zawsze Zatwierdzony) */
-export async function deanFinalApprove(id: string): Promise<void> {
+export async function deanFinalApprove(id: string): Promise<ExamTermStatus | null> {
     await finalApproveExamTerm(id);
     await refreshApiEvents();
+    return getTermStatusById(id);
 }
 
 /** Dziekanat finalnie odrzuca */
-export async function deanFinalReject(id: string): Promise<void> {
+export async function deanFinalReject(id: string): Promise<ExamTermStatus | null> {
     await finalRejectExamTerm(id);
     await refreshApiEvents();
+    return getTermStatusById(id);
 }
 
-export async function starostaReject(id: string): Promise<void> {
+export async function starostaReject(id: string): Promise<ExamTermStatus | null> {
     await rejectExamTermByStarosta(id);
     await refreshApiEvents();
+    return getTermStatusById(id);
 }
 
 // -----------------------------
@@ -458,7 +567,8 @@ export function exportExamDataToCSVString(rows?: ExamEvent[]): string {
         "Rok",
         "Prowadzacy",
         "Data",
-        "Godzina",
+        "Godzina startu",
+        "Godzina konca",
         "Sala",
         "Status",
         "StarostaOK",
@@ -483,6 +593,7 @@ export function exportExamDataToCSVString(rows?: ExamEvent[]): string {
             e.lecturer ?? "",
             e.dateISO,
             e.time ?? "",
+            e.endTime ?? "",
             e.room ?? "",
             getStatusLabel(e.status),
             e.approvedByStarosta ? "1" : "0",
