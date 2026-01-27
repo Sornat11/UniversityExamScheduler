@@ -4,6 +4,7 @@ using UniversityExamScheduler.Application.Contracts;
 using UniversityExamScheduler.Application.Dtos.StudentGroup.Request;
 using UniversityExamScheduler.Application.Exceptions;
 using UniversityExamScheduler.Domain.Entities;
+using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.Application.Services;
 
@@ -13,6 +14,16 @@ public interface IStudentGroupService
     Task<StudentGroup?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<IEnumerable<StudentGroup>> ListAsync(CancellationToken cancellationToken = default);
     Task<bool> IsMemberAsync(Guid studentId, Guid groupId, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<StudentGroup> Items, int TotalCount)> SearchAsync(
+        string? name,
+        string? search,
+        string? fieldOfStudy,
+        StudyType? studyType,
+        int? semester,
+        Guid? starostaId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     Task<StudentGroup> AddAsync(CreateStudentGroupDto groupDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateStudentGroupDto groupDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -40,6 +51,18 @@ public class StudentGroupService : IStudentGroupService
 
     public Task<bool> IsMemberAsync(Guid studentId, Guid groupId, CancellationToken cancellationToken = default) =>
         _uow.StudentGroups.IsMemberAsync(studentId, groupId, cancellationToken);
+
+    public Task<(IEnumerable<StudentGroup> Items, int TotalCount)> SearchAsync(
+        string? name,
+        string? search,
+        string? fieldOfStudy,
+        StudyType? studyType,
+        int? semester,
+        Guid? starostaId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _uow.StudentGroups.SearchAsync(name, search, fieldOfStudy, studyType, semester, starostaId, page, pageSize, cancellationToken);
 
     public async Task<StudentGroup> AddAsync(CreateStudentGroupDto groupDto, CancellationToken cancellationToken = default)
     {

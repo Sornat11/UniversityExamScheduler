@@ -43,7 +43,7 @@ public class ExamControllerTests
             new ExamController(examService.Object, mapper),
             ControllerTestHelper.BuildUser(Role.Student, userId: null));
 
-        var result = await controller.List(default);
+        var result = await controller.List(cancellationToken: default);
 
         result.Should().BeOfType<ForbidResult>();
     }

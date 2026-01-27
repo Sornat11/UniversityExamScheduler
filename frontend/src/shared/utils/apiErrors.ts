@@ -9,6 +9,15 @@ const ERROR_TRANSLATIONS: Record<string, string> = {
     "Exam term date cannot be in the past.": "Data terminu nie moze byc w przeszlosci.",
     "Exam term date must be within the exam session range.": "Data terminu musi miescic sie w zakresie sesji.",
     "Start time must be before end time.": "Godzina rozpoczecia musi byc przed godzina zakonczenia.",
+    "Exam term conflicts with existing schedule.": "Wybrany termin koliduje z istniejacym terminem.",
+    "Exam term conflicts with existing schedule (room).": "Wybrany termin koliduje z sala.",
+    "Exam term conflicts with existing schedule (group).": "Wybrany termin koliduje z grupa.",
+    "Exam term conflicts with existing schedule (lecturer).": "Wybrany termin koliduje z prowadzacym.",
+    "Exam term conflicts with existing schedule (room, group).": "Wybrany termin koliduje z sala i grupa.",
+    "Exam term conflicts with existing schedule (room, lecturer).": "Wybrany termin koliduje z sala i prowadzacym.",
+    "Exam term conflicts with existing schedule (group, lecturer).": "Wybrany termin koliduje z grupa i prowadzacym.",
+    "Exam term conflicts with existing schedule (room, group, lecturer).": "Wybrany termin koliduje z sala, grupa i prowadzacym.",
+    "Exam duration must be 90 minutes.": "Egzamin musi trwac 1.5 godziny.",
 };
 
 function coerceString(value: unknown): string | null {

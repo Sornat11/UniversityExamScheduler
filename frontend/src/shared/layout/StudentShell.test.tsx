@@ -33,7 +33,7 @@ describe("StudentShell", () => {
         const { onLogout } = renderShell({ role: "Student", route: "/app/student/profile" });
 
         expect(screen.getByText("Harmonogram")).toBeInTheDocument();
-        expect(screen.getByText("Przedmioty")).toBeInTheDocument();
+        expect(screen.getByText("Egzaminy")).toBeInTheDocument();
         expect(screen.queryByText("Proponowanie terminu")).not.toBeInTheDocument();
         expect(screen.queryByText("Panel dziekanatu")).not.toBeInTheDocument();
 
@@ -47,7 +47,7 @@ describe("StudentShell", () => {
     it("renders dean office navigation and correct profile base", () => {
         renderShell({ role: "DeanOffice", route: "/app/deanoffice/subjects", userName: "Dziekanat" });
 
-        expect(screen.getByText("Przedmioty")).toBeInTheDocument();
+        expect(screen.getByText("Egzaminy")).toBeInTheDocument();
         expect(screen.getByText("Panel dziekanatu")).toBeInTheDocument();
         expect(screen.queryByText("Harmonogram")).not.toBeInTheDocument();
         expect(screen.queryByText("Proponowanie terminu")).not.toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("StudentShell", () => {
 
         expect(screen.getByText("Harmonogram")).toBeInTheDocument();
         expect(screen.getByText("Proponowanie terminu")).toBeInTheDocument();
-        expect(screen.getByText("Przedmioty")).toBeInTheDocument();
+        expect(screen.getByText("Egzaminy")).toBeInTheDocument();
 
         const profileLink = screen.getByRole("link", { name: "Panel uzytkownika" });
         expect(profileLink).toHaveAttribute("href", "/app/lecturer/profile");

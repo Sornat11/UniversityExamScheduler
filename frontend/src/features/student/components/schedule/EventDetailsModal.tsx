@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { getStatusLabel, type ExamEvent } from "../../../exams/data/examStore";
 import { statusDotClass } from "../../../exams/utils/status";
+import { formatTimeRange } from "../../../exams/utils/time";
 
 type Props = {
     event: ExamEvent;
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export function EventDetailsModal({ event, onClose }: Props) {
+    const timeRange = formatTimeRange(event.time, event.endTime, "");
+
     return (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 px-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-3">
@@ -30,9 +33,9 @@ export function EventDetailsModal({ event, onClose }: Props) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-700">
-                    {event.time && (
+                    {timeRange && (
                         <div>
-                            <span className="font-semibold text-slate-900">Godzina:</span> {event.time}
+                            <span className="font-semibold text-slate-900">Godzina:</span> {timeRange}
                         </div>
                     )}
                     {event.room && (

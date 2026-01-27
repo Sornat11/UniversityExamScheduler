@@ -5,6 +5,8 @@ using UniversityExamScheduler.Application.Dtos.ExamTermHistory.Respone;
 using UniversityExamScheduler.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using UniversityExamScheduler.Domain.Enums;
+using UniversityExamScheduler.Application.Dtos;
+using UniversityExamScheduler.WebApi.Helpers;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
@@ -31,18 +33,60 @@ public class ExamTermHistoryController(IExamTermHistoryService historyService, I
     }
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] Guid? examTermId, CancellationToken cancellationToken)
+    public async Task<IActionResult> List(
+        [FromQuery] Guid? examTermId = null,
+        [FromQuery] Guid? changedBy = null,
+        [FromQuery] ExamTermStatus? previousStatus = null,
+        [FromQuery] ExamTermStatus? newStatus = null,
+        [FromQuery] DateTime? changedFrom = null,
+        [FromQuery] DateTime? changedTo = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null,
+        CancellationToken cancellationToken = default)
     {
-        if (examTermId.HasValue)
+        var hasSearchOrFilters = !string.IsNullOrWhiteSpace(search)
+            || changedBy.HasValue
+            || previousStatus.HasValue
+            || newStatus.HasValue
+            || changedFrom.HasValue
+            || changedTo.HasValue;
+        var hasPaging = PaginationDefaults.HasPaging(page, pageSize);
+
+        if (!hasPaging && !hasSearchOrFilters && examTermId.HasValue)
         {
             var forTerm = await historyService.ListByExamTermAsync(examTermId.Value, cancellationToken);
             var termDtos = mapper.Map<IEnumerable<GetExamTermHistoryDto>>(forTerm);
             return Ok(termDtos);
         }
 
-        var histories = await historyService.ListAsync(cancellationToken);
-        var dtos = mapper.Map<IEnumerable<GetExamTermHistoryDto>>(histories);
-        return Ok(dtos);
+        if (!hasPaging && !hasSearchOrFilters && !examTermId.HasValue)
+        {
+            var histories = await historyService.ListAsync(cancellationToken);
+            var dtos = mapper.Map<IEnumerable<GetExamTermHistoryDto>>(histories);
+            return Ok(dtos);
+        }
+
+        var (normalizedPage, normalizedPageSize) = PaginationDefaults.Normalize(page, pageSize);
+        var (items, total) = await historyService.SearchAsync(
+            examTermId,
+            changedBy,
+            previousStatus,
+            newStatus,
+            changedFrom,
+            changedTo,
+            search,
+            normalizedPage,
+            normalizedPageSize,
+            cancellationToken);
+        var paged = new PagedResult<GetExamTermHistoryDto>
+        {
+            Items = mapper.Map<IEnumerable<GetExamTermHistoryDto>>(items),
+            TotalCount = total,
+            Page = normalizedPage,
+            PageSize = normalizedPageSize
+        };
+        return Ok(paged);
     }
 
     [HttpPut("{id}")]

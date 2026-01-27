@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using UniversityExamScheduler.Application.Services;
 using UniversityExamScheduler.Domain.Entities;
 using UniversityExamScheduler.Domain.Enums;
@@ -13,7 +14,7 @@ public class AuthControllerTests
     [Fact]
     public async Task Login_ReturnsUnauthorized_ForUnknownUser()
     {
-        var controller = new AuthController(BuildConfig(), new Mock<IUserService>().Object);
+        var controller = new AuthController(BuildConfig(), new Mock<IUserService>().Object, NullLogger<AuthController>.Instance);
 
         var result = await controller.Login(new AuthController.LoginRequest("unknown", "pass"), default);
 
@@ -26,7 +27,7 @@ public class AuthControllerTests
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"] = new string('a', 32) })
             .Build();
-        var controller = new AuthController(config, new Mock<IUserService>().Object);
+        var controller = new AuthController(config, new Mock<IUserService>().Object, NullLogger<AuthController>.Instance);
 
         var result = await controller.Login(new AuthController.LoginRequest("student", "pass"), default);
 
@@ -46,7 +47,7 @@ public class AuthControllerTests
                 ["Jwt:ExpiresMinutes"] = "60"
             })
             .Build();
-        var controller = new AuthController(config, new Mock<IUserService>().Object);
+        var controller = new AuthController(config, new Mock<IUserService>().Object, NullLogger<AuthController>.Instance);
 
         var result = await controller.Login(new AuthController.LoginRequest("student", "pass"), default);
 
@@ -57,7 +58,7 @@ public class AuthControllerTests
     [Fact]
     public async Task Login_ReturnsOk_ForKnownUser()
     {
-        var controller = new AuthController(BuildConfig(), new Mock<IUserService>().Object);
+        var controller = new AuthController(BuildConfig(), new Mock<IUserService>().Object, NullLogger<AuthController>.Instance);
 
         var result = await controller.Login(new AuthController.LoginRequest("student", "pass"), default);
 
@@ -71,7 +72,7 @@ public class AuthControllerTests
     public async Task Me_ReturnsUnauthorized_WhenClaimsMissing()
     {
         var controller = ControllerTestHelper.WithUser(
-            new AuthController(BuildConfig(), new Mock<IUserService>().Object),
+            new AuthController(BuildConfig(), new Mock<IUserService>().Object, NullLogger<AuthController>.Instance),
             new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()));
 
         var result = await controller.Me(default);
@@ -96,7 +97,7 @@ public class AuthControllerTests
             });
 
         var controller = ControllerTestHelper.WithUser(
-            new AuthController(BuildConfig(), userService.Object),
+            new AuthController(BuildConfig(), userService.Object, NullLogger<AuthController>.Instance),
             ControllerTestHelper.BuildUser(Role.Student, userId, isStarosta: false, name: "student"));
 
         var result = await controller.Me(default);

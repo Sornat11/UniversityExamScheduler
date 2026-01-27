@@ -212,38 +212,25 @@ export function isEditableApprovedStatus(status: ExamTermStatus): boolean {
     return status === "Approved";
 }
 
-export function normalizeTermStatus(raw?: string | null): ExamTermStatus {
-    if (!raw) return "Draft";
-    const s = String(raw).trim();
-
-    // direct matches (case-sensitive and expected values)
-    switch (s) {
+function normalizeTermStatus(raw?: string | null): ExamTermStatus {
+    switch (raw) {
         case "Draft":
         case "Conflict":
             return "Draft";
         case "ProposedByLecturer":
         case "ProposedByStudent":
-            return s as ExamTermStatus;
+            return raw;
         case "Approved":
         case "Finalized":
         case "Rejected":
-            return s as ExamTermStatus;
+            return raw;
         case "Zatwierdzony":
             return "Approved";
         case "Odrzucony":
             return "Rejected";
+        default:
+            return "Draft";
     }
-
-    // fallback: try case-insensitive / trimmed variants
-    const lower = s.toLowerCase();
-    if (lower === "proposedbylecturer") return "ProposedByLecturer";
-    if (lower === "proposedbystudent") return "ProposedByStudent";
-    if (lower === "approved" || lower === "zatwierdzony") return "Approved";
-    if (lower === "finalized") return "Finalized";
-    if (lower === "rejected" || lower === "odrzucony") return "Rejected";
-    if (lower === "conflict") return "Conflict";
-
-    return "Draft";
 }
 
 function getTermStatusById(id: string): ExamTermStatus | null {

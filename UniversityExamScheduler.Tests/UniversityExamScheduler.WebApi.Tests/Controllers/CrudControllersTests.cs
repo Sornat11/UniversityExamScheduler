@@ -22,7 +22,7 @@ public class CrudControllersTests
         var mapper = ControllerTestHelper.CreateMapper();
         var controller = new RoomController(roomService.Object, mapper);
 
-        var result = await controller.Get("A1", default);
+        var result = await controller.Get("A1", cancellationToken: default);
 
         result.Should().BeOfType<NotFoundResult>();
     }
@@ -116,7 +116,7 @@ public class CrudControllersTests
         var mapper = ControllerTestHelper.CreateMapper();
         var controller = new ExamTermHistoryController(historyService.Object, mapper);
 
-        var result = await controller.List(termId, default);
+        var result = await controller.List(termId, cancellationToken: default);
 
         result.Should().BeOfType<OkObjectResult>();
     }

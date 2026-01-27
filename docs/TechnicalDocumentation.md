@@ -13,6 +13,7 @@
 - Infrastructure - EF Core (ApplicationDbContext), repozytoria i Unit of Work, migracje.
 - WebApi - kontrolery REST, DI, middleware obsługi wyjątków, konfiguracja Swaggera i Seriloga.
 - Frontend - UI (frontend/) oparte o React Router, React Query i klienta API w `src/api`.
+Diagramy architektury: `docs/Architecture.md`.
 
 ## 3. Przepływ żądania
 1. Klient wywołuje endpoint kontrolera.
@@ -56,17 +57,22 @@ Szczegóły typów i relacji: `docs/DatabaseSchema.md`.
 - JSON: enumy jako stringi, DateOnly/TimeOnly jako ISO (`YYYY-MM-DD`, `HH:mm:ss`).
 
 ## 8. Konfiguracja i uruchomienie
-- Pliki konfiguracyjne: `UniversityExamScheduler.WebApi/appsettings*.json`.
-- `ConnectionStrings:DefaultConnection` - połączenie do PostgreSQL.
-- `Jwt:Key` musi mieć co najmniej 32 znaki.
+- Konfiguracja przez zmienne środowiskowe (przykład w `.env.example`).
+- `ConnectionStrings__DefaultConnection` - połączenie do PostgreSQL.
+- `Jwt__Key` (>= 32 znaki), `Jwt__Issuer`, `Jwt__Audience`.
 - `SeedDemoData` kontroluje załadowanie danych przy starcie (domyślnie `true` w dev).
-- `Program.cs` rejestruje DbContext, repozytoria, serwisy, AutoMapper, FluentValidation, Serilog i Swagger.
+- `Program.cs` rejestruje DbContext, repozytoria, serwisy, AutoMapper, FluentValidation, Serilog, Swagger oraz OpenTelemetry.
 - Uruchomienie: `dotnet run --project UniversityExamScheduler.WebApi`.
+- Docker (backend + DB): `docker compose up --build` i lokalny frontend `npm run dev`.
 
 ## 9. Logowanie i obserwowalność
 - Serilog: poziom min. `Information`, nadpisania namespace'ów Microsoft -> `Warning/Information`, wzbogacenie o nazwę środowiska.
 - Wyjście: konsola (lub konfiguracja z appsettings przez `ReadFrom.Configuration`).
 - Błędy HTTP logowane przez middleware.
+- OpenTelemetry:
+  - metryki i śledzenie (ASP.NET Core + HttpClient + runtime),
+  - endpoint: `GET /health`,
+  - eksport OTLP przez `OTEL_EXPORTER_OTLP_ENDPOINT` (opcjonalnie).
 
 ## 10. Rozwój i testy
 - Backend: `dotnet build`, `dotnet test`.

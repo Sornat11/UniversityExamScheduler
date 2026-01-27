@@ -43,6 +43,9 @@ namespace UniversityExamScheduler.WebApi.Controllers
         public async Task<IActionResult> GetByEmail(
             [FromQuery] string? email,
             [FromQuery] string? search,
+            [FromQuery] Role? role,
+            [FromQuery] bool? isActive,
+            [FromQuery] bool? isStarosta,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -58,7 +61,14 @@ namespace UniversityExamScheduler.WebApi.Controllers
             var normalizedPage = page < 1 ? 1 : page;
             var normalizedPageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
 
-            var (items, total) = await userService.SearchAsync(search, normalizedPage, normalizedPageSize, cancellationToken);
+            var (items, total) = await userService.SearchAsync(
+                search,
+                role,
+                isActive,
+                isStarosta,
+                normalizedPage,
+                normalizedPageSize,
+                cancellationToken);
             var dtos = mapper.Map<IEnumerable<GetUserDto>>(items);
             var paged = new PagedResult<GetUserDto>
             {

@@ -11,6 +11,16 @@ public interface IExamSessionService
 {
     Task<ExamSession?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<ExamSession>> ListAsync(CancellationToken cancellationToken = default);
+    Task<(IEnumerable<ExamSession> Items, int TotalCount)> SearchAsync(
+        string? search,
+        bool? isActive,
+        DateOnly? startFrom,
+        DateOnly? startTo,
+        DateOnly? endFrom,
+        DateOnly? endTo,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     Task<ExamSession> AddAsync(CreateExamSessionDto sessionDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateExamSessionDto sessionDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -32,6 +42,18 @@ public class ExamSessionService : IExamSessionService
 
     public Task<IEnumerable<ExamSession>> ListAsync(CancellationToken cancellationToken = default) =>
         _uow.ExamSessions.ListAsync(cancellationToken);
+
+    public Task<(IEnumerable<ExamSession> Items, int TotalCount)> SearchAsync(
+        string? search,
+        bool? isActive,
+        DateOnly? startFrom,
+        DateOnly? startTo,
+        DateOnly? endFrom,
+        DateOnly? endTo,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _uow.ExamSessions.SearchAsync(search, isActive, startFrom, startTo, endFrom, endTo, page, pageSize, cancellationToken);
 
     public async Task<ExamSession> AddAsync(CreateExamSessionDto sessionDto, CancellationToken cancellationToken = default)
     {

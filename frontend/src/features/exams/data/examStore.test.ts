@@ -5,9 +5,6 @@ import {
     getStatusLabel,
     getVisibleExamEvents,
     normalizeTimeToSlot,
-    normalizeTermStatus,
-    isStarostaApprovable,
-    isLecturerApprovable,
     type ExamEvent,
 } from "./examStore";
 
@@ -35,23 +32,6 @@ describe("status helpers", () => {
         expect(getStatusLabel("Finalized")).toBe("Zatwierdzony (finalny)");
         expect(getStatusLabel("Draft")).toBe("Proponowany");
         expect(getStatusLabel("Conflict")).toBe("Proponowany");
-
-        // specific proposer labels
-        expect(getStatusLabel("ProposedByLecturer")).toBe("Proponowany (prowadzacy)");
-        expect(getStatusLabel("ProposedByStudent")).toBe("Proponowany (starosta)");
-
-        // normalization: accept case / whitespace variants
-        // @ts-expect-error intentionally passing string variants
-        expect(normalizeTermStatus("  proposedByLecturer ")).toBe("ProposedByLecturer");
-        // @ts-expect-error intentionally passing string variants
-        expect(normalizeTermStatus("proposedbystudent")).toBe("ProposedByStudent");
-    });
-
-    it("approvable helpers work for correct proposer statuses", () => {
-        expect(isStarostaApprovable("ProposedByLecturer")).toBe(true);
-        expect(isLecturerApprovable("ProposedByStudent")).toBe(true);
-        expect(isStarostaApprovable("ProposedByStudent")).toBe(false);
-        expect(isLecturerApprovable("ProposedByLecturer")).toBe(false);
     });
 });
 

@@ -12,6 +12,7 @@ import {
 import { fetchExams, type ExamDto } from "../../../api/exams";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { normalizeRole } from "../../auth/utils/roles";
+import { getApiErrorMessage } from "../../../shared/utils/apiErrors";
 
 function addMinutes(time: string, minutes: number) {
     const [h, m] = time.split(":").map((v) => Number(v));
@@ -19,6 +20,32 @@ function addMinutes(time: string, minutes: number) {
     const hh = Math.floor(total / 60) % 24;
     const mm = total % 60;
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+type Toast = { type: "success" | "error"; message: string } | null;
+
+type ToastViewProps = {
+    toast: Toast;
+};
+
+function ToastView({ toast }: ToastViewProps) {
+    if (!toast) return null;
+
+    const base =
+        "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 min-w-[320px] max-w-[520px] px-5 py-3 rounded-2xl border shadow-sm text-sm flex items-center gap-3";
+    const cls =
+        toast.type === "success"
+            ? `${base} bg-emerald-50 border-emerald-200 text-emerald-800`
+            : `${base} bg-red-50 border-red-200 text-red-800`;
+
+    return (
+        <div className={cls}>
+            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-white border">
+                {toast.type === "success" ? "OK" : "!"}
+            </span>
+            <div className="font-medium">{toast.message}</div>
+        </div>
+    );
 }
 
 export default function LecturerProposeTermPage() {
@@ -39,6 +66,18 @@ export default function LecturerProposeTermPage() {
     const [sessionId, setSessionId] = useState("");
     const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [toast, setToast] = useState<Toast>(null);
+
+    useEffect(() => {
+        const t = toast ? window.setTimeout(() => setToast(null), 2500) : undefined;
+        return () => {
+            if (t) window.clearTimeout(t);
+        };
+    }, [toast]);
+
+    function showToast(next: Toast) {
+        setToast(next);
+    }
 
     useEffect(() => {
         let active = true;
@@ -177,6 +216,7 @@ export default function LecturerProposeTermPage() {
 
     return (
         <div className="space-y-6">
+            <ToastView toast={toast} />
             <div className="bg-white border rounded-2xl p-6 space-y-5 w-full">
                 <div className="text-slate-900 font-semibold text-lg">Zaproponuj termin egzaminu</div>
 
@@ -290,10 +330,12 @@ export default function LecturerProposeTermPage() {
                                 endTime: endSlot || undefined,
                             });
 
-                            nav("/app/lecturer/subjects", { replace: true });
+                            const toastPayload = { type: "success" as const, message: "Propozycja zostala zapisana." };
+                            nav("/app/lecturer/subjects", { replace: true, state: { toast: toastPayload } });
                         } catch (e: unknown) {
-                            const message = e instanceof Error ? e.message : "Nie udalo sie zapisac propozycji.";
+                            const message = getApiErrorMessage(e, "Nie udalo sie zapisac propozycji.");
                             setError(message);
+                            showToast({ type: "error", message });
                         }
                     }}
                 >

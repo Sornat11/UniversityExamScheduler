@@ -9,6 +9,7 @@ using System.Text;
 using UniversityExamScheduler.Application.Services;
 using UniversityExamScheduler.Domain.Entities;
 using UniversityExamScheduler.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
@@ -19,11 +20,13 @@ public class AuthController : ControllerBase
 {
     private readonly IConfiguration _config;
     private readonly IUserService _userService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IConfiguration config, IUserService userService)
+    public AuthController(IConfiguration config, IUserService userService, ILogger<AuthController> logger)
     {
         _config = config;
         _userService = userService;
+        _logger = logger;
     }
 
     public record LoginRequest(string Username, string Password);
@@ -91,7 +94,10 @@ public class AuthController : ControllerBase
         }
 
         if (username is not ("student" or "starosta" or "prowadzacy" or "dziekanat" or "admin"))
+        {
+            _logger.LogWarning("Login failed for {Username}: unknown demo user", username);
             return Unauthorized(new { message = "Unknown demo user. Allowed: student/starosta/prowadzacy/dziekanat/admin" });
+        }
 
         var dbUser = await ResolveDemoUserAsync(username, cancellationToken);
         if (dbUser is not null)
@@ -116,6 +122,7 @@ public class AuthController : ControllerBase
             string.IsNullOrWhiteSpace(audience) ||
             string.IsNullOrWhiteSpace(key))
         {
+            _logger.LogError("Login failed for {Username}: missing JWT configuration", username);
             return StatusCode(500, new
             {
                 message = "Missing JWT configuration. Required keys: Jwt:Issuer, Jwt:Audience, Jwt:Key, Jwt:ExpiresMinutes."
@@ -124,6 +131,7 @@ public class AuthController : ControllerBase
 
         if (key.Length < 32)
         {
+            _logger.LogError("Login failed for {Username}: JWT key too short", username);
             return StatusCode(500, new
             {
                 message = "Jwt:Key is too short. Use at least 32 characters for HMAC SHA256."
@@ -161,6 +169,8 @@ public class AuthController : ControllerBase
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
         var userDto = BuildUser(username, role, isStarosta, dbUser);
+
+        _logger.LogInformation("Login success for {Username} (role {Role}, starosta {IsStarosta})", username, role, isStarosta);
 
         return Ok(new LoginResponse(
             AccessToken: tokenString,

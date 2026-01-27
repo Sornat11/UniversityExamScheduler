@@ -1,57 +1,56 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Filter } from "lucide-react";
-import { getStatusCategory, getVisibleExamEvents, type ExamStatus } from "../../exams/data/examStore";
-import { useExamEvents } from "../../exams/hooks/useExamEvents";
 import { StatusBadge } from "../../exams/components/StatusBadge";
 import { formatDatePLFromISO } from "../../exams/utils/date";
 import { useSessionPeriod } from "../../exams/hooks/useSessionPeriod";
 import { useAuth } from "../../auth/hooks/useAuth";
+import { usePagedExamEvents } from "../../exams/hooks/usePagedExamEvents";
+import type { ExamEventDto, ExamTermType } from "../../../api/exams";
+import type { ExamTermStatus } from "../../exams/data/examStore";
 
 export default function DeanOfficeSubjectsPage() {
-    const { user } = useAuth();
-    const { events, loading } = useExamEvents();
+    useAuth();
     const sessionPeriod = useSessionPeriod();
 
-    const [field, setField] = useState("Wszystkie");
-    const [studyType, setStudyType] = useState("Wszystkie");
-    const [year, setYear] = useState("Wszystkie");
-    const [status, setStatus] = useState<"Wszystkie" | ExamStatus>("Wszystkie");
-    const fallback = "Brak danych";
-    const normalize = (v: string) => v.trim().toLowerCase();
+    const [status, setStatus] = useState("");
+    const [termType, setTermType] = useState("");
+    const [query, setQuery] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 15;
 
-    const visibleEvents = useMemo(
-        () => getVisibleExamEvents(events, user, sessionPeriod),
-        [events, user, sessionPeriod]
-    );
+    const statusFilter = status ? (status as ExamTermStatus) : undefined;
+    const typeFilter = termType ? (termType as ExamTermType) : undefined;
+
+    const { data, loading, error } = usePagedExamEvents({
+        search: query.trim() || undefined,
+        status: statusFilter,
+        type: typeFilter,
+        dateFrom: sessionPeriod?.startISO,
+        dateTo: sessionPeriod?.endISO,
+        page,
+        pageSize,
+    });
+
+    useEffect(() => {
+        setPage(1);
+    }, [query, status, termType]);
 
     const rows = useMemo(() => {
-        return visibleEvents.map((e) => ({
+        const items = data?.items ?? [];
+        return items.map((e: ExamEventDto) => ({
             ...e,
-            fieldOfStudy: e.fieldOfStudy ?? fallback,
-            studyType: e.studyType ?? fallback,
-            year: e.year ?? fallback,
-            lecturer: e.lecturer ?? fallback,
-            time: e.time ?? fallback,
-            room: e.room ?? fallback,
+            fieldOfStudy: e.fieldOfStudy ?? "Brak danych",
+            studyType: e.studyType ?? "Brak danych",
+            year: e.year ?? "Brak danych",
+            lecturer: e.lecturer ?? "Brak danych",
+            startTime: e.time ?? "-",
+            endTime: e.endTime ?? "-",
+            room: e.room ?? "-",
             datePL: formatDatePLFromISO(e.dateISO),
         }));
-    }, [visibleEvents]);
+    }, [data]);
 
-    const options = useMemo(() => {
-        const fields = Array.from(new Set(rows.map((r) => r.fieldOfStudy).filter((x) => x !== fallback)));
-        const types = Array.from(new Set(rows.map((r) => r.studyType).filter((x) => x !== fallback)));
-        const years = Array.from(new Set(rows.map((r) => r.year).filter((x) => x !== fallback)));
-        return { fields, types, years };
-    }, [rows]);
-
-    const filtered = useMemo(() => {
-        let r = rows;
-        if (field !== "Wszystkie") r = r.filter((x) => normalize(x.fieldOfStudy) === normalize(field));
-        if (studyType !== "Wszystkie") r = r.filter((x) => normalize(x.studyType) === normalize(studyType));
-        if (year !== "Wszystkie") r = r.filter((x) => normalize(x.year) === normalize(year));
-        if (status !== "Wszystkie") r = r.filter((x) => getStatusCategory(x.status) === status);
-        return r;
-    }, [rows, field, studyType, year, status]);
+    const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / data.pageSize)) : 1;
 
     return (
         <div className="space-y-6">
@@ -60,48 +59,45 @@ export default function DeanOfficeSubjectsPage() {
                     <Filter className="w-4 h-4" /> Filtry
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                     <div>
-                        <div className="text-sm text-slate-600 mb-1">Kierunek</div>
-                        <select className="w-full h-10 border rounded-lg px-3 bg-white" value={field} onChange={(e) => setField(e.target.value)}>
-                            <option>Wszystkie</option>
-                            {options.fields.map((x) => (
-                                <option key={x}>{x}</option>
-                            ))}
-                        </select>
+                        <div className="text-sm text-slate-600 mb-1">Szukaj</div>
+                        <input
+                            className="w-full h-10 border rounded-lg px-3 bg-white"
+                            placeholder="Przedmiot, kierunek, prowadzacy, sala"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                        />
                     </div>
 
                     <div>
-                        <div className="text-sm text-slate-600 mb-1">Typ studiow</div>
-                        <select className="w-full h-10 border rounded-lg px-3 bg-white" value={studyType} onChange={(e) => setStudyType(e.target.value)}>
-                            <option>Wszystkie</option>
-                            {options.types.map((x) => (
-                                <option key={x}>{x}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <div className="text-sm text-slate-600 mb-1">Rok</div>
-                        <select className="w-full h-10 border rounded-lg px-3 bg-white" value={year} onChange={(e) => setYear(e.target.value)}>
-                            <option>Wszystkie</option>
-                            {options.years.map((x) => (
-                                <option key={x}>{x}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <div className="text-sm text-slate-600 mb-1">Status</div>
+                        <div className="text-sm text-slate-600 mb-1">Status (backend)</div>
                         <select
                             className="w-full h-10 border rounded-lg px-3 bg-white"
                             value={status}
-                            onChange={(e) => setStatus(e.target.value as ExamStatus | "Wszystkie")}
+                            onChange={(e) => setStatus(e.target.value)}
                         >
-                            <option>Wszystkie</option>
-                            <option>Zatwierdzony</option>
-                            <option>Proponowany</option>
-                            <option>Odrzucony</option>
+                            <option value="">Wszystkie</option>
+                            <option value="ProposedByLecturer">Proponowany (prowadzacy)</option>
+                            <option value="ProposedByStudent">Proponowany (starosta)</option>
+                            <option value="Draft">Wersja robocza</option>
+                            <option value="Approved">Zatwierdzony</option>
+                            <option value="Finalized">Zatwierdzony (finalny)</option>
+                            <option value="Rejected">Odrzucony</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div className="text-sm text-slate-600 mb-1">Typ terminu</div>
+                        <select
+                            className="w-full h-10 border rounded-lg px-3 bg-white"
+                            value={termType}
+                            onChange={(e) => setTermType(e.target.value)}
+                        >
+                            <option value="">Wszystkie</option>
+                            <option value="FirstAttempt">1 termin</option>
+                            <option value="Retake">Poprawka</option>
+                            <option value="Commission">Komisja</option>
                         </select>
                     </div>
                 </div>
@@ -110,7 +106,7 @@ export default function DeanOfficeSubjectsPage() {
             <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
                 <div className="px-6 py-4 border-b bg-slate-50/80">
                     <span className="inline-flex items-center rounded-full border bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
-                        {loading ? "Ladowanie..." : `Wyniki: ${filtered.length}`}
+                        {loading ? "Ladowanie..." : `Wyniki: ${data?.totalCount ?? 0}`}
                     </span>
                 </div>
 
@@ -124,22 +120,23 @@ export default function DeanOfficeSubjectsPage() {
                                 <th className="px-6 py-3 font-semibold">Rok</th>
                                 <th className="px-6 py-3 font-semibold">Prowadzacy</th>
                                 <th className="px-6 py-3 font-semibold whitespace-nowrap">Data</th>
-                                <th className="px-6 py-3 font-semibold whitespace-nowrap">Godzina</th>
+                                <th className="px-6 py-3 font-semibold whitespace-nowrap">Start</th>
+                                <th className="px-6 py-3 font-semibold whitespace-nowrap">Koniec</th>
                                 <th className="px-6 py-3 font-semibold whitespace-nowrap">Sala</th>
                                 <th className="px-6 py-3 font-semibold">Status</th>
                             </tr>
                         </thead>
 
                         <tbody className="divide-y divide-slate-100">
-                            {!loading && filtered.length === 0 && (
+                            {!loading && rows.length === 0 && (
                                 <tr>
-                                    <td className="px-6 py-6 text-sm text-slate-600" colSpan={9}>
+                                    <td className="px-6 py-6 text-sm text-slate-600" colSpan={10}>
                                         Brak wynikow.
                                     </td>
                                 </tr>
                             )}
 
-                            {filtered.map((r) => (
+                            {rows.map((r) => (
                                 <tr key={r.id} className="transition-colors hover:bg-slate-50/70">
                                     <td className="px-6 py-4 text-sm font-medium text-slate-900">{r.title}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700">{r.fieldOfStudy}</td>
@@ -147,7 +144,8 @@ export default function DeanOfficeSubjectsPage() {
                                     <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.year}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700">{r.lecturer}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.datePL}</td>
-                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.time}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.startTime}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.endTime}</td>
                                     <td className="px-6 py-4 text-sm text-slate-700 whitespace-nowrap">{r.room}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <StatusBadge status={r.status} />
@@ -158,9 +156,32 @@ export default function DeanOfficeSubjectsPage() {
                     </table>
                 </div>
             </div>
+
+            <div className="flex items-center justify-between text-sm text-slate-600">
+                <div>
+                    Strona {data?.page ?? page} / {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                        disabled={page <= 1 || loading}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                        Poprzednia
+                    </button>
+                    <button
+                        type="button"
+                        className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                        disabled={page >= totalPages || loading}
+                        onClick={() => setPage((p) => p + 1)}
+                    >
+                        Nastepna
+                    </button>
+                </div>
+            </div>
+
+            {error && <div className="text-sm text-red-600">{error}</div>}
         </div>
     );
 }
-
-
-

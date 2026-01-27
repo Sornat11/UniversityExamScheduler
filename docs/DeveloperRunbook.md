@@ -1,24 +1,47 @@
 ﻿# Developer Runbook - University Exam Scheduler
 
 ## Prerequisites
-- .NET 8 SDK with `dotnet` on PATH.
-- Node.js 20+ and npm.
-- PostgreSQL running locally (default connection string in `appsettings.Development.json`).
+- Docker Desktop (recommended for backend + database).
+- .NET 8 SDK with `dotnet` on PATH (only for local backend).
+- Node.js 20+ and npm (frontend).
+- PostgreSQL running locally (only for local backend; configure via env vars).
 - Ports: backend `5000`, frontend `5173` (adjust proxy if changed).
 
+## Docker (backend + database)
+1. Create local `.env` from the example and fill secrets:
+   ```bash
+   copy .env.example .env
+   ```
+2. Start backend + database:
+   ```bash
+   docker compose up --build
+   ```
+   Parametry (port, login, hasło, JWT, OTLP) są w `.env`.
+3. Run the frontend locally:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+4. Swagger UI: `http://localhost:5000/`.
+
 ## Backend (WebApi)
-1. Configure connection string in `UniversityExamScheduler.WebApi/appsettings.Development.json` (`ConnectionStrings:DefaultConnection`).
-2. Ensure `Jwt:Key` has at least 32 characters.
-3. Optional: toggle `SeedDemoData` to load demo entities at startup.
-4. Apply migrations if the database is empty:
+1. Configure environment variables (example in `.env.example`):
+   - `ConnectionStrings__DefaultConnection`
+   - `Jwt__Key` (>= 32 chars), `Jwt__Issuer`, `Jwt__Audience`
+   - Optional: `SeedDemoData`
+2. Apply migrations if the database is empty:
    ```bash
    dotnet ef database update -p UniversityExamScheduler.Infrastructure -s UniversityExamScheduler.WebApi
    ```
-5. Run the API:
+3. Run the API:
    ```bash
    dotnet run --project UniversityExamScheduler.WebApi
    ```
-6. Swagger UI: `http://localhost:5000/` (JWT support enabled).
+4. Swagger UI: `http://localhost:5000/` (JWT support enabled).
+5. Observability endpoint:
+   - Health: `GET /health`
+   - OTLP export: `OTEL_EXPORTER_OTLP_ENDPOINT` (opcjonalnie)
 
 ### Auth (demo)
 - Use `/api/auth/login` with usernames: `student`, `starosta`, `prowadzacy`, `dziekanat`, `admin` (any password).
@@ -37,8 +60,9 @@
 - DateOnly/TimeOnly use ISO strings (`YYYY-MM-DD`, `HH:mm:ss`).
 
 ## Common Issues
-- **DB connection refused**: verify PostgreSQL is running and credentials match `appsettings.Development.json`.
+- **DB connection refused**: verify PostgreSQL is running (local) or the `db` container is healthy (Docker).
 - **JWT key length**: `Jwt:Key` must be >= 32 characters or the app will fail to start.
+- **Missing env vars**: configure `ConnectionStrings__DefaultConnection` and `Jwt__Key` (see `.env.example`).
 - **CORS**: frontend must be served from `http://localhost:5173` (already allowed by API policy).
 - **Migrations**: if schema drifts, regenerate/apply migrations from `UniversityExamScheduler.Infrastructure`.
 

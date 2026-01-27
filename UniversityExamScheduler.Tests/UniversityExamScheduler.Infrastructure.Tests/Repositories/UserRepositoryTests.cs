@@ -45,7 +45,13 @@ public class UserRepositoryTests
 
         var repository = new UserRepository(context);
 
-        var (items, total) = await repository.SearchAsync("and", page: 0, pageSize: 0);
+        var (items, total) = await repository.SearchAsync(
+            "and",
+            role: null,
+            isActive: null,
+            isStarosta: null,
+            page: 0,
+            pageSize: 0);
 
         total.Should().Be(2);
         items.Select(u => u.FirstName).Should().ContainInOrder("Alice", "Bob");

@@ -14,7 +14,14 @@ public interface IUserService
     Task<User?> GetByIdWithGroupsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<IEnumerable<User>> ListAsync(CancellationToken cancellationToken = default);
-    Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(
+        string? query,
+        Role? role,
+        bool? isActive,
+        bool? isStarosta,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     Task<User> AddAsync(CreateUserDto userDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateUserDto userDto, CancellationToken cancellationToken = default);
@@ -43,8 +50,15 @@ public class UserService : IUserService
     public Task<IEnumerable<User>> ListAsync(CancellationToken cancellationToken = default) =>
         _uow.Users.ListAsync(cancellationToken);
 
-    public Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default) =>
-        _uow.Users.SearchAsync(query, page, pageSize, cancellationToken);
+    public Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(
+        string? query,
+        Role? role,
+        bool? isActive,
+        bool? isStarosta,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _uow.Users.SearchAsync(query, role, isActive, isStarosta, page, pageSize, cancellationToken);
 
     public async Task<User> AddAsync(CreateUserDto userDto, CancellationToken cancellationToken = default)
     {

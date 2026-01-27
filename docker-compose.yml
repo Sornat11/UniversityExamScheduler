@@ -16,19 +16,26 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+  backend:
     build:
       context: .
-      dockerfile: .github/workflows/Dockerfile
+      dockerfile: Dockerfile.backend
     depends_on:
       db:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      ASPNETCORE_URLS: http://0.0.0.0:8080
       SeedDemoData: ${SEED_DEMO_DATA}
-      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=UniversityExamSchedulerDb;Username=postgres;Password=postgres
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__Issuer: ${Jwt__Issuer}
+      Jwt__Audience: ${Jwt__Audience}
+      Jwt__Key: ${Jwt__Key}
+      Jwt__ExpiresMinutes: ${Jwt__ExpiresMinutes:-120}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-UniversityExamScheduler.Api}
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-5000}:8080"
 
 volumes:
   ues-db-data:

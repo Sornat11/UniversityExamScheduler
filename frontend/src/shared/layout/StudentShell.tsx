@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { CalendarDays, BookOpen, PlusCircle, LogOut, UserCircle } from "lucide-react";
+import { BookOpen, CalendarDays, LogOut, PlusCircle, Shield, UserCircle } from "lucide-react";
 import { cx } from "../utils/cx";
 
 type Props = {
@@ -56,24 +56,27 @@ export default function StudentShell({ userName, role, onLogout, children }: Pro
     const isStarosta = roleKey === "starosta";
     const isLecturer = roleKey === "lecturer" || roleKey === "prowadzacy" || roleKey === "prowadzący";
     const isDeanOffice = roleKey === "deanoffice" || roleKey === "dziekanat";
+    const isAdmin = roleKey === "admin";
 
     // ✅ najważniejsze: poprawny base dla każdej roli
     const base = useMemo(() => {
+        if (isAdmin) return "/app/admin";
         if (isDeanOffice) return "/app/deanoffice";
         if (isStarosta) return "/app/starosta";
         if (isLecturer) return "/app/lecturer";
         return "/app/student";
-    }, [isDeanOffice, isStarosta, isLecturer]);
+    }, [isAdmin, isDeanOffice, isStarosta, isLecturer]);
 
     const profilePath = `${base}/profile`;
 
     const pageTitle = useMemo(() => {
         const p = location.pathname;
+        if (p.includes("/profile")) return "Panel uzytkownika";
+        if (p.includes("/admin")) return "Panel admina";
         if (p.includes("/schedule")) return "Harmonogram egzaminów";
-        if (p.includes("/subjects")) return "Lista przedmiotów";
+        if (p.includes("/subjects")) return "Lista egzaminów";
         if (p.includes("/propose")) return "Proponowanie terminu";
         if (p.includes("/panel")) return "Panel dziekanatu";
-        if (p.includes("/profile")) return "Panel uzytkownika";
         return "Panel";
     }, [location.pathname]);
 
@@ -110,46 +113,52 @@ export default function StudentShell({ userName, role, onLogout, children }: Pro
                             </div>
                         </div>
 
-                        <nav className="mt-4 space-y-2">
-                            {!isDeanOffice && (
-                                <NavItem
-                                    to={`${base}/schedule`}
-                                    icon={<CalendarDays className="w-5 h-5" />}
-                                    label="Harmonogram"
-                                />
-                            )}
-
-                            {/* dziekanat: przedmioty + panel */}
-                            {isDeanOffice ? (
-                                <>
-                                    <NavItem
-                                        to={`${base}/subjects`}
-                                        icon={<BookOpen className="w-5 h-5" />}
-                                        label="Przedmioty"
-                                    />
-                                    <NavItem
-                                        to={`${base}/panel`}
-                                        icon={<PlusCircle className="w-5 h-5" />}
-                                        label="Panel dziekanatu"
-                                    />
-                                </>
+                                                <nav className="mt-4 space-y-2">
+                            {isAdmin ? (
+                                <NavItem to={`${base}`} icon={<Shield className="w-5 h-5" />} label="Panel admina" />
                             ) : (
                                 <>
-                                    {/* starosta/prowadzący: proponowanie */}
-                                    {(isStarosta || isLecturer) && (
+                                    {!isDeanOffice && (
                                         <NavItem
-                                            to={`${base}/propose`}
-                                            icon={<PlusCircle className="w-5 h-5" />}
-                                            label="Proponowanie terminu"
+                                            to={`${base}/schedule`}
+                                            icon={<CalendarDays className="w-5 h-5" />}
+                                            label="Harmonogram"
                                         />
                                     )}
 
-                                    {/* student/starosta/prowadzący */}
-                                    <NavItem
-                                        to={`${base}/subjects`}
-                                        icon={<BookOpen className="w-5 h-5" />}
-                                        label="Przedmioty"
-                                    />
+                                    {/* dziekanat: egzaminy + panel */}
+                                    {isDeanOffice ? (
+                                        <>
+                                            <NavItem
+                                                to={`${base}/subjects`}
+                                                icon={<BookOpen className="w-5 h-5" />}
+                                                label="Egzaminy"
+                                            />
+                                            <NavItem
+                                                to={`${base}/panel`}
+                                                icon={<PlusCircle className="w-5 h-5" />}
+                                                label="Panel dziekanatu"
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            {/* starosta/prowadz??cy: proponowanie */}
+                                            {(isStarosta || isLecturer) && (
+                                                <NavItem
+                                                    to={`${base}/propose`}
+                                                    icon={<PlusCircle className="w-5 h-5" />}
+                                                    label="Proponowanie terminu"
+                                                />
+                                            )}
+
+                                            {/* student/starosta/prowadz??cy */}
+                                            <NavItem
+                                                to={`${base}/subjects`}
+                                                icon={<BookOpen className="w-5 h-5" />}
+                                                label="Egzaminy"
+                                            />
+                                        </>
+                                    )}
                                 </>
                             )}
                         </nav>

@@ -1,0 +1,22 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY UniversityExamScheduler.sln ./
+COPY UniversityExamScheduler.Domain/UniversityExamScheduler.Domain.csproj UniversityExamScheduler.Domain/
+COPY UniversityExamScheduler.Application/UniversityExamScheduler.Application.csproj UniversityExamScheduler.Application/
+COPY UniversityExamScheduler.Infrastructure/UniversityExamScheduler.Infrastructure.csproj UniversityExamScheduler.Infrastructure/
+COPY UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj UniversityExamScheduler.WebApi/
+RUN dotnet restore UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj
+
+COPY UniversityExamScheduler.Domain/ UniversityExamScheduler.Domain/
+COPY UniversityExamScheduler.Application/ UniversityExamScheduler.Application/
+COPY UniversityExamScheduler.Infrastructure/ UniversityExamScheduler.Infrastructure/
+COPY UniversityExamScheduler.WebApi/ UniversityExamScheduler.WebApi/
+RUN dotnet publish UniversityExamScheduler.WebApi/UniversityExamScheduler.WebApi.csproj -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "UniversityExamScheduler.WebApi.dll"]

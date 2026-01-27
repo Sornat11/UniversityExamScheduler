@@ -3,7 +3,6 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { normalizeRole, isStarosta } from "../features/auth/utils/roles";
 import StudentShell from "../shared/layout/StudentShell";
-import { PlaceholderCard } from "../shared/components/PlaceholderCard";
 
 import LoginPage from "../features/auth/pages/LoginPage";
 import StudentSchedulePage from "../features/student/pages/StudentSchedulePage";
@@ -15,6 +14,7 @@ import LecturerProposeTermPage from "../features/lecturer/pages/LecturerProposeT
 import DeanOfficeSubjectsPage from "../features/deanoffice/pages/DeanOfficeSubjectsPage";
 import DeanOfficePanelPage from "../features/deanoffice/pages/DeanOfficePanelPage";
 import UserProfilePage from "../features/profile/pages/UserProfilePage";
+import AdminPanelPage from "../features/admin/pages/AdminPanelPage";
 
 type ProtectedProps = {
     children: ReactElement;
@@ -164,7 +164,25 @@ function DeanOfficeApp() {
 }
 
 function AdminApp() {
-    return <PlaceholderCard title="Panel admina (Admin)" />;
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    return (
+        <StudentShell
+            userName={user?.username ?? "Admin"}
+            role="Admin"
+            onLogout={() => {
+                logout();
+                navigate("/login", { replace: true });
+            }}
+        >
+            <Routes>
+                <Route path="" element={<AdminPanelPage />} />
+                <Route path="profile" element={<UserProfilePage />} />
+                <Route path="*" element={<Navigate to="/app/admin" replace />} />
+            </Routes>
+        </StudentShell>
+    );
 }
 
 export default function App() {
@@ -220,7 +238,7 @@ export default function App() {
             />
 
             <Route
-                path="/app/admin"
+                path="/app/admin/*"
                 element={
                     <Protected>
                         <RequireRole allowed={["Admin"]}>

@@ -55,7 +55,6 @@ public static class DatabaseSeeder
 
     private static readonly ExamTermStatus[] BogusTermStatuses =
     {
-        ExamTermStatus.Draft,
         ExamTermStatus.ProposedByLecturer,
         ExamTermStatus.ProposedByStudent,
         ExamTermStatus.Approved
@@ -444,8 +443,7 @@ public static class DatabaseSeeder
             var startHour = faker.Random.Int(8, 15);
             var startMinute = faker.Random.Bool() ? 0 : 30;
             var startTime = new TimeOnly(startHour, startMinute);
-            var durationMinutes = faker.Random.Int(90, 180);
-            var endTime = startTime.AddMinutes(durationMinutes);
+            var endTime = startTime.AddMinutes(90);
             var room = rooms.Count > 0 ? rooms[faker.Random.Int(0, rooms.Count - 1)] : null;
             var termType = BogusTermTypes[faker.Random.Int(0, BogusTermTypes.Length - 1)];
             var termStatus = BogusTermStatuses[faker.Random.Int(0, BogusTermStatuses.Length - 1)];
@@ -689,7 +687,7 @@ public static class DatabaseSeeder
                     RoomId = roomAId,
                     Date = new DateOnly(2026, 1, 10),
                     StartTime = new TimeOnly(9, 0),
-                    EndTime = new TimeOnly(11, 0),
+                    EndTime = new TimeOnly(10, 30),
                     Type = ExamTermType.FirstAttempt,
                     Status = ExamTermStatus.Approved,
                     CreatedBy = createdById

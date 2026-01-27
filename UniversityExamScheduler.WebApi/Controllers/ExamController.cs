@@ -6,6 +6,8 @@ using UniversityExamScheduler.Application.Dtos.Exam.Request;
 using UniversityExamScheduler.Application.Dtos.Exam.Respone;
 using UniversityExamScheduler.Application.Services;
 using UniversityExamScheduler.Domain.Enums;
+using UniversityExamScheduler.Application.Dtos;
+using UniversityExamScheduler.WebApi.Helpers;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
@@ -39,32 +41,82 @@ public class ExamController(IExamService examService, IMapper mapper) : Controll
 
     [HttpGet]
     [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)},{nameof(Role.Student)}")]
-    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    public async Task<IActionResult> List(
+        [FromQuery] string? search = null,
+        [FromQuery] Guid? lecturerId = null,
+        [FromQuery] Guid? groupId = null,
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null,
+        CancellationToken cancellationToken = default)
     {
+        var hasSearchOrFilters = !string.IsNullOrWhiteSpace(search) || lecturerId.HasValue || groupId.HasValue;
+        var hasPaging = PaginationDefaults.HasPaging(page, pageSize);
+
+        if (!hasPaging && !hasSearchOrFilters)
+        {
+            if (User.IsInRole(nameof(Role.Student)))
+            {
+                if (!TryGetUserId(out var studentId))
+                {
+                    return Forbid();
+                }
+
+                var studentExams = await examService.ListForStudentAsync(studentId, cancellationToken);
+                var studentDtos = mapper.Map<IEnumerable<GetExamDto>>(studentExams);
+                return Ok(studentDtos);
+            }
+
+            var exams = await examService.ListAsync(cancellationToken);
+            if (User.IsInRole(nameof(Role.Lecturer)))
+            {
+                if (!TryGetUserId(out var currentLecturerId))
+                {
+                    return Forbid();
+                }
+                exams = exams.Where(e => e.LecturerId == currentLecturerId);
+            }
+            var dtos = mapper.Map<IEnumerable<GetExamDto>>(exams);
+            return Ok(dtos);
+        }
+
+        Guid? studentScope = null;
+        Guid? lecturerScope = lecturerId;
+
         if (User.IsInRole(nameof(Role.Student)))
         {
             if (!TryGetUserId(out var studentId))
             {
                 return Forbid();
             }
-
-            var studentExams = await examService.ListForStudentAsync(studentId, cancellationToken);
-
-            var studentDtos = mapper.Map<IEnumerable<GetExamDto>>(studentExams);
-            return Ok(studentDtos);
+            studentScope = studentId;
+            lecturerScope = null;
         }
-
-        var exams = await examService.ListAsync(cancellationToken);
-        if (User.IsInRole(nameof(Role.Lecturer)))
+        else if (User.IsInRole(nameof(Role.Lecturer)))
         {
-            if (!TryGetUserId(out var lecturerId))
+            if (!TryGetUserId(out var currentLecturerId))
             {
                 return Forbid();
             }
-            exams = exams.Where(e => e.LecturerId == lecturerId);
+            lecturerScope = currentLecturerId;
         }
-        var dtos = mapper.Map<IEnumerable<GetExamDto>>(exams);
-        return Ok(dtos);
+
+        var (normalizedPage, normalizedPageSize) = PaginationDefaults.Normalize(page, pageSize);
+        var (items, total) = await examService.SearchAsync(
+            search,
+            lecturerScope,
+            groupId,
+            studentScope,
+            normalizedPage,
+            normalizedPageSize,
+            cancellationToken);
+        var paged = new PagedResult<GetExamDto>
+        {
+            Items = mapper.Map<IEnumerable<GetExamDto>>(items),
+            TotalCount = total,
+            Page = normalizedPage,
+            PageSize = normalizedPageSize
+        };
+        return Ok(paged);
     }
 
     [HttpPut("{id}")]

@@ -4,6 +4,7 @@ using UniversityExamScheduler.Application.Contracts;
 using UniversityExamScheduler.Application.Dtos.Room.Request;
 using UniversityExamScheduler.Application.Exceptions;
 using UniversityExamScheduler.Domain.Entities;
+using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.Application.Services;
 
@@ -12,6 +13,16 @@ public interface IRoomService
     Task<Room?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Room?> GetByRoomNumberAsync(string roomNumber, CancellationToken cancellationToken = default);
     Task<IEnumerable<Room>> ListAsync(CancellationToken cancellationToken = default);
+    Task<(IEnumerable<Room> Items, int TotalCount)> SearchAsync(
+        string? search,
+        string? roomNumber,
+        RoomType? type,
+        bool? isAvailable,
+        int? minCapacity,
+        int? maxCapacity,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     Task<Room> AddAsync(CreateRoomDto roomDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateRoomDto roomDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -36,6 +47,18 @@ public class RoomService : IRoomService
 
     public Task<IEnumerable<Room>> ListAsync(CancellationToken cancellationToken = default) =>
         _uow.Rooms.ListAsync(cancellationToken);
+
+    public Task<(IEnumerable<Room> Items, int TotalCount)> SearchAsync(
+        string? search,
+        string? roomNumber,
+        RoomType? type,
+        bool? isAvailable,
+        int? minCapacity,
+        int? maxCapacity,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _uow.Rooms.SearchAsync(search, roomNumber, type, isAvailable, minCapacity, maxCapacity, page, pageSize, cancellationToken);
 
     public async Task<Room> AddAsync(CreateRoomDto roomDto, CancellationToken cancellationToken = default)
     {

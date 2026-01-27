@@ -18,8 +18,8 @@ import {
     createExamSession,
     deleteExam,
     deleteExamSession,
-    fetchExamSessions,
-    fetchExams,
+    searchExamSessions,
+    searchExams,
     fetchStudentGroups,
     searchUsers,
     updateExamSession,
@@ -78,6 +78,8 @@ export default function DeanOfficePanelPage() {
 
     const [usersResult, setUsersResult] = useState<{ items: UserDto[]; totalCount: number; page: number; pageSize: number } | null>(null);
     const [userQuery, setUserQuery] = useState("");
+    const [userRoleFilter, setUserRoleFilter] = useState<RoleOption | "Wszystkie">("Wszystkie");
+    const [userActiveFilter, setUserActiveFilter] = useState<"Wszyscy" | "Aktywni" | "Nieaktywni">("Wszyscy");
     const [userPage, setUserPage] = useState(1);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserDto | null>(null);
@@ -85,12 +87,19 @@ export default function DeanOfficePanelPage() {
     const selectedStudentGroups = selectedUser?.studentGroups ?? [];
     const selectedIsStudent = selectedRoleOption ? isStudentRole(selectedRoleOption) : false;
 
-    const [sessions, setSessions] = useState<ExamSessionDto[]>([]);
+    const [sessionsResult, setSessionsResult] = useState<{ items: ExamSessionDto[]; totalCount: number; page: number; pageSize: number } | null>(null);
+    const [sessionQuery, setSessionQuery] = useState("");
+    const [sessionActiveFilter, setSessionActiveFilter] = useState<"Wszystkie" | "Aktywne" | "Nieaktywne">("Wszystkie");
+    const [sessionPage, setSessionPage] = useState(1);
     const [sessionForm, setSessionForm] = useState<Omit<ExamSessionDto, "id">>({ name: "", startDate: "", endDate: "", isActive: true });
     const [sessionEditingId, setSessionEditingId] = useState<string | null>(null);
     const [loadingSessions, setLoadingSessions] = useState(false);
 
-    const [exams, setExams] = useState<ExamDto[]>([]);
+    const [examsResult, setExamsResult] = useState<{ items: ExamDto[]; totalCount: number; page: number; pageSize: number } | null>(null);
+    const [examQuery, setExamQuery] = useState("");
+    const [examLecturerFilter, setExamLecturerFilter] = useState("");
+    const [examGroupFilter, setExamGroupFilter] = useState("");
+    const [examPage, setExamPage] = useState(1);
     const [examForm, setExamForm] = useState<Omit<ExamDto, "id">>({ name: "", lecturerId: "", groupId: "" });
     const [loadingExams, setLoadingExams] = useState(false);
 
@@ -117,6 +126,8 @@ export default function DeanOfficePanelPage() {
         return map;
     }, [people]);
     const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
+    const sessions = sessionsResult?.items ?? [];
+    const exams = examsResult?.items ?? [];
 
     const showError = useCallback((message: string) => {
         setError(message);
@@ -127,7 +138,17 @@ export default function DeanOfficePanelPage() {
         async (page = 1, query = "") => {
             setLoadingUsers(true);
             try {
-                const res = await searchUsers({ page, pageSize: 10, search: query.trim() || undefined });
+                const roleFilter = userRoleFilter === "Wszystkie" ? undefined : userRoleFilter === "Starosta" ? "Student" : userRoleFilter;
+                const isStarosta = userRoleFilter === "Starosta" ? true : undefined;
+                const isActive = userActiveFilter === "Aktywni" ? true : userActiveFilter === "Nieaktywni" ? false : undefined;
+                const res = await searchUsers({
+                    page,
+                    pageSize: 10,
+                    search: query.trim() || undefined,
+                    role: roleFilter,
+                    isActive,
+                    isStarosta,
+                });
                 setUsersResult(res);
                 if (!people.length) {
                     setPeople(res.items);
@@ -138,24 +159,31 @@ export default function DeanOfficePanelPage() {
                 setLoadingUsers(false);
             }
         },
-        [people.length, showError]
+        [people.length, showError, userActiveFilter, userRoleFilter]
     );
 
     const loadSessions = useCallback(async () => {
         setLoadingSessions(true);
         try {
-            const res = await fetchExamSessions();
-            setSessions(res);
-            const active = res
-                .filter((s) => s.isActive)
-                .sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+            const activeFilter =
+                sessionActiveFilter === "Aktywne" ? true : sessionActiveFilter === "Nieaktywne" ? false : undefined;
+            const res = await searchExamSessions({
+                page: sessionPage,
+                pageSize: 8,
+                search: sessionQuery.trim() || undefined,
+                isActive: activeFilter,
+            });
+            setSessionsResult(res);
+
+            const activeRes = await searchExamSessions({ page: 1, pageSize: 1, isActive: true });
+            const active = activeRes.items[0] ?? res.items[0];
             if (active) setSessionPeriod(active.startDate, active.endDate);
         } catch (e: unknown) {
             showError(getErrorMessage(e, "Nie udalo sie pobrac okresow sesji."));
         } finally {
             setLoadingSessions(false);
         }
-    }, [showError]);
+    }, [sessionActiveFilter, sessionPage, sessionQuery, showError]);
 
     const loadReferenceData = useCallback(async () => {
         try {
@@ -182,23 +210,41 @@ export default function DeanOfficePanelPage() {
     const loadExams = useCallback(async () => {
         setLoadingExams(true);
         try {
-            const res = await fetchExams();
-            setExams(res);
+            const res = await searchExams({
+                page: examPage,
+                pageSize: 8,
+                search: examQuery.trim() || undefined,
+                lecturerId: examLecturerFilter || undefined,
+                groupId: examGroupFilter || undefined,
+            });
+            setExamsResult(res);
         } catch (e: unknown) {
             showError(getErrorMessage(e, "Nie udalo sie pobrac przedmiotow."));
         } finally {
             setLoadingExams(false);
         }
-    }, [showError]);
+    }, [examGroupFilter, examLecturerFilter, examPage, examQuery, showError]);
     useEffect(() => {
         loadUsers(userPage, userQuery);
     }, [loadUsers, userPage, userQuery]);
+
+    useEffect(() => {
+        setUserPage(1);
+    }, [userQuery, userRoleFilter, userActiveFilter]);
 
     useEffect(() => {
         loadSessions();
         loadReferenceData();
         loadExams();
     }, [loadSessions, loadReferenceData, loadExams]);
+
+    useEffect(() => {
+        setSessionPage(1);
+    }, [sessionQuery, sessionActiveFilter]);
+
+    useEffect(() => {
+        setExamPage(1);
+    }, [examQuery, examLecturerFilter, examGroupFilter]);
 
     async function handleRoleChange(u: UserDto, option: RoleOption) {
         const nextRole = option === "Starosta" ? "Student" : option;
@@ -290,7 +336,7 @@ export default function DeanOfficePanelPage() {
     return (
         <div className="space-y-5">
             {toast && (
-                <div className="fixed top-6 right-6 z-50 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 shadow">
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 shadow">
                     {toast}
                 </div>
             )}
@@ -321,7 +367,7 @@ export default function DeanOfficePanelPage() {
                     className={`px-3 py-2 rounded-lg border text-sm ${activeTab === "exams" ? "bg-emerald-600 text-white" : "bg-white"}`}
                     onClick={() => setActiveTab("exams")}
                 >
-                    Przedmioty i egzaminy
+                    Przedmioty
                 </button>
             </div>
 
@@ -338,6 +384,27 @@ export default function DeanOfficePanelPage() {
                                 onKeyDown={(e) => e.key === "Enter" && loadUsers(1, e.currentTarget.value)}
                             />
                         </div>
+                        <select
+                            className="border rounded-lg px-2 py-2 text-sm"
+                            value={userRoleFilter}
+                            onChange={(e) => setUserRoleFilter(e.target.value as RoleOption | "Wszystkie")}
+                        >
+                            <option value="Wszystkie">Wszystkie role</option>
+                            <option value="Student">Student</option>
+                            <option value="Starosta">Starosta</option>
+                            <option value="Lecturer">Prowadzacy</option>
+                            <option value="DeanOffice">Dziekanat</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                        <select
+                            className="border rounded-lg px-2 py-2 text-sm"
+                            value={userActiveFilter}
+                            onChange={(e) => setUserActiveFilter(e.target.value as "Wszyscy" | "Aktywni" | "Nieaktywni")}
+                        >
+                            <option value="Wszyscy">Wszyscy</option>
+                            <option value="Aktywni">Aktywni</option>
+                            <option value="Nieaktywni">Nieaktywni</option>
+                        </select>
                         <button
                             type="button"
                             className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg text-sm"
@@ -550,6 +617,24 @@ export default function DeanOfficePanelPage() {
                         )}
                     </div>
 
+                    <div className="flex items-center gap-3 flex-wrap pt-2">
+                        <input
+                            className="border rounded-lg px-3 py-2 text-sm"
+                            placeholder="Szukaj po nazwie"
+                            value={sessionQuery}
+                            onChange={(e) => setSessionQuery(e.target.value)}
+                        />
+                        <select
+                            className="border rounded-lg px-2 py-2 text-sm"
+                            value={sessionActiveFilter}
+                            onChange={(e) => setSessionActiveFilter(e.target.value as "Wszystkie" | "Aktywne" | "Nieaktywne")}
+                        >
+                            <option value="Wszystkie">Wszystkie</option>
+                            <option value="Aktywne">Aktywne</option>
+                            <option value="Nieaktywne">Nieaktywne</option>
+                        </select>
+                    </div>
+
                     <div className="w-full">
                         <table className="w-full text-sm mt-3">
                             <thead className="bg-neutral-50 border-b">
@@ -603,11 +688,37 @@ export default function DeanOfficePanelPage() {
                             </tbody>
                         </table>
                     </div>
+
+                    {sessionsResult && sessionsResult.totalCount > sessionsResult.pageSize && (
+                        <div className="flex items-center justify-between pt-3 text-sm">
+                            <div>
+                                Strona {sessionsResult.page} / {Math.ceil(sessionsResult.totalCount / sessionsResult.pageSize)}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                                    disabled={sessionPage <= 1}
+                                    onClick={() => setSessionPage((p) => Math.max(1, p - 1))}
+                                >
+                                    Poprzednia
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                                    disabled={sessionPage >= Math.ceil(sessionsResult.totalCount / sessionsResult.pageSize)}
+                                    onClick={() => setSessionPage((p) => p + 1)}
+                                >
+                                    Nastepna
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </SectionCard>
             )}
 
             {activeTab === "exams" && (
-                <SectionCard title="Przedmioty i egzaminy" icon={<BookOpen className="w-5 h-5" />}>
+                <SectionCard title="Przedmioty" icon={<BookOpen className="w-5 h-5" />}>
                     <div className="space-y-4">
                         <div className="text-sm text-slate-700 font-semibold">Dodaj przedmiot</div>
                         <label className="text-sm space-y-1 block">
@@ -658,6 +769,38 @@ export default function DeanOfficePanelPage() {
 
                         <div className="border-t pt-4">
                             <div className="text-sm font-semibold text-slate-700 mb-2">Przedmioty</div>
+                            <div className="flex items-center gap-3 flex-wrap mb-3">
+                                <input
+                                    className="border rounded-lg px-3 py-2 text-sm"
+                                    placeholder="Szukaj po nazwie"
+                                    value={examQuery}
+                                    onChange={(e) => setExamQuery(e.target.value)}
+                                />
+                                <select
+                                    className="border rounded-lg px-2 py-2 text-sm"
+                                    value={examLecturerFilter}
+                                    onChange={(e) => setExamLecturerFilter(e.target.value)}
+                                >
+                                    <option value="">Wszyscy prowadzacy</option>
+                                    {lecturerOptions.map((l) => (
+                                        <option key={l.id} value={l.id}>
+                                            {l.firstName} {l.lastName}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    className="border rounded-lg px-2 py-2 text-sm"
+                                    value={examGroupFilter}
+                                    onChange={(e) => setExamGroupFilter(e.target.value)}
+                                >
+                                    <option value="">Wszystkie grupy</option>
+                                    {groups.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            {g.fieldOfStudy} - sem. {g.semester} ({g.name})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             {loadingExams && <Loader2 className="w-4 h-4 animate-spin" />}
                             {!loadingExams && exams.length === 0 && (
                                 <div className="text-sm text-slate-600">Brak przedmiotow.</div>
@@ -688,6 +831,31 @@ export default function DeanOfficePanelPage() {
                                     );
                                 })}
                             </div>
+                            {examsResult && examsResult.totalCount > examsResult.pageSize && (
+                                <div className="flex items-center justify-between pt-3 text-sm">
+                                    <div>
+                                        Strona {examsResult.page} / {Math.ceil(examsResult.totalCount / examsResult.pageSize)}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                                            disabled={examPage <= 1}
+                                            onClick={() => setExamPage((p) => Math.max(1, p - 1))}
+                                        >
+                                            Poprzednia
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="px-3 py-2 border rounded-lg disabled:opacity-50"
+                                            disabled={examPage >= Math.ceil(examsResult.totalCount / examsResult.pageSize)}
+                                            onClick={() => setExamPage((p) => p + 1)}
+                                        >
+                                            Nastepna
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </SectionCard>

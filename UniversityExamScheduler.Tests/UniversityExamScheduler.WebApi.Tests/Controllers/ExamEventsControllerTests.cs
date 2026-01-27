@@ -18,7 +18,7 @@ public class ExamEventsControllerTests
             new ExamEventsController(termService.Object),
             new ClaimsPrincipal(new ClaimsIdentity()));
 
-        var result = await controller.List(default);
+        var result = await controller.List(cancellationToken: default);
 
         result.Result.Should().BeOfType<UnauthorizedObjectResult>();
     }
@@ -68,7 +68,7 @@ public class ExamEventsControllerTests
             new ExamEventsController(termService.Object),
             ControllerTestHelper.BuildUser(Role.Admin));
 
-        var result = await controller.List(default);
+        var result = await controller.List(cancellationToken: default);
 
         var ok = result.Result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = ok.Value.Should().BeAssignableTo<IEnumerable<ExamEventsController.ExamEventDto>>().Subject;

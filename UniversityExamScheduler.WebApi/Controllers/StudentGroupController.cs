@@ -5,6 +5,8 @@ using UniversityExamScheduler.Application.Dtos.StudentGroup.Respone;
 using UniversityExamScheduler.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using UniversityExamScheduler.Domain.Enums;
+using UniversityExamScheduler.Application.Dtos;
+using UniversityExamScheduler.WebApi.Helpers;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
@@ -34,9 +36,25 @@ public class StudentGroupController(IStudentGroupService groupService, IMapper m
 
     [HttpGet]
     [Authorize(Roles = $"{nameof(Role.DeanOffice)},{nameof(Role.Admin)},{nameof(Role.Lecturer)}")]
-    public async Task<IActionResult> Get([FromQuery] string? name, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(
+        [FromQuery] string? name,
+        [FromQuery] string? search,
+        [FromQuery] string? fieldOfStudy,
+        [FromQuery] StudyType? studyType,
+        [FromQuery] int? semester,
+        [FromQuery] Guid? starostaId,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(name))
+        var hasSearchOrFilters = !string.IsNullOrWhiteSpace(search)
+            || !string.IsNullOrWhiteSpace(fieldOfStudy)
+            || studyType.HasValue
+            || semester.HasValue
+            || starostaId.HasValue;
+        var hasPaging = PaginationDefaults.HasPaging(page, pageSize);
+
+        if (!hasPaging && !hasSearchOrFilters && !string.IsNullOrWhiteSpace(name))
         {
             var group = await groupService.GetByNameAsync(name, cancellationToken);
             if (group is null) return NotFound();
@@ -44,9 +62,32 @@ public class StudentGroupController(IStudentGroupService groupService, IMapper m
             return Ok(groupDto);
         }
 
-        var groups = await groupService.ListAsync(cancellationToken);
-        var dtos = mapper.Map<IEnumerable<GetStudentGroupDto>>(groups);
-        return Ok(dtos);
+        if (!hasPaging && !hasSearchOrFilters && string.IsNullOrWhiteSpace(name))
+        {
+            var groups = await groupService.ListAsync(cancellationToken);
+            var dtos = mapper.Map<IEnumerable<GetStudentGroupDto>>(groups);
+            return Ok(dtos);
+        }
+
+        var (normalizedPage, normalizedPageSize) = PaginationDefaults.Normalize(page, pageSize);
+        var (items, total) = await groupService.SearchAsync(
+            name,
+            search,
+            fieldOfStudy,
+            studyType,
+            semester,
+            starostaId,
+            normalizedPage,
+            normalizedPageSize,
+            cancellationToken);
+        var paged = new PagedResult<GetStudentGroupDto>
+        {
+            Items = mapper.Map<IEnumerable<GetStudentGroupDto>>(items),
+            TotalCount = total,
+            Page = normalizedPage,
+            PageSize = normalizedPageSize
+        };
+        return Ok(paged);
     }
 
     [HttpPut("{id}")]

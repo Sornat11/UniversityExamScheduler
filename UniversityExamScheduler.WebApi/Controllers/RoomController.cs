@@ -5,6 +5,8 @@ using UniversityExamScheduler.Application.Dtos.Room.Respone;
 using UniversityExamScheduler.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using UniversityExamScheduler.Domain.Enums;
+using UniversityExamScheduler.Application.Dtos;
+using UniversityExamScheduler.WebApi.Helpers;
 
 namespace UniversityExamScheduler.WebApi.Controllers;
 
@@ -32,9 +34,25 @@ public class RoomController(IRoomService roomService, IMapper mapper) : Controll
     }
 
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] string? roomNumber, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(
+        [FromQuery] string? roomNumber = null,
+        [FromQuery] string? search = null,
+        [FromQuery] RoomType? type = null,
+        [FromQuery] bool? isAvailable = null,
+        [FromQuery] int? minCapacity = null,
+        [FromQuery] int? maxCapacity = null,
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null,
+        CancellationToken cancellationToken = default)
     {
-        if (!string.IsNullOrWhiteSpace(roomNumber))
+        var hasSearchOrFilters = !string.IsNullOrWhiteSpace(search)
+            || type.HasValue
+            || isAvailable.HasValue
+            || minCapacity.HasValue
+            || maxCapacity.HasValue;
+        var hasPaging = PaginationDefaults.HasPaging(page, pageSize);
+
+        if (!hasPaging && !hasSearchOrFilters && !string.IsNullOrWhiteSpace(roomNumber))
         {
             var room = await roomService.GetByRoomNumberAsync(roomNumber, cancellationToken);
             if (room is null) return NotFound();
@@ -42,9 +60,32 @@ public class RoomController(IRoomService roomService, IMapper mapper) : Controll
             return Ok(dto);
         }
 
-        var rooms = await roomService.ListAsync(cancellationToken);
-        var dtos = mapper.Map<IEnumerable<GetRoomDto>>(rooms);
-        return Ok(dtos);
+        if (!hasPaging && !hasSearchOrFilters && string.IsNullOrWhiteSpace(roomNumber))
+        {
+            var rooms = await roomService.ListAsync(cancellationToken);
+            var dtos = mapper.Map<IEnumerable<GetRoomDto>>(rooms);
+            return Ok(dtos);
+        }
+
+        var (normalizedPage, normalizedPageSize) = PaginationDefaults.Normalize(page, pageSize);
+        var (items, total) = await roomService.SearchAsync(
+            search,
+            roomNumber,
+            type,
+            isAvailable,
+            minCapacity,
+            maxCapacity,
+            normalizedPage,
+            normalizedPageSize,
+            cancellationToken);
+        var paged = new PagedResult<GetRoomDto>
+        {
+            Items = mapper.Map<IEnumerable<GetRoomDto>>(items),
+            TotalCount = total,
+            Page = normalizedPage,
+            PageSize = normalizedPageSize
+        };
+        return Ok(paged);
     }
 
     [HttpPut("{id}")]

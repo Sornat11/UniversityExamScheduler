@@ -1,6 +1,7 @@
 import { format, isSameMonth, isToday } from "date-fns";
 import type { ExamEvent } from "../../../exams/data/examStore";
 import { statusDotClass } from "../../../exams/utils/status";
+import { formatTimeRange } from "../../../exams/utils/time";
 
 type SessionRange = {
     start: Date;
@@ -56,22 +57,32 @@ export function ScheduleCalendar({ mode, cursor, days, eventsByDate, sessionRang
                             </div>
 
                             <div className="mt-3 space-y-2">
-                                {dayEvents.map((ev) => (
-                                    <button
-                                        key={ev.id}
-                                        type="button"
-                                        onClick={() => onSelectEvent(ev)}
-                                        className="w-full text-left flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-neutral-100 focus-visible:outline focus-visible:ring-2 focus-visible:ring-emerald-400"
-                                        title={ev.room ? `${ev.title} (${ev.room})` : ev.title}
-                                    >
-                                        <span className={`w-3 h-3 rounded border ${statusDotClass(ev.status)}`} />
-                                        <div className="text-xs text-slate-700 truncate">
-                                            {ev.time ? `${ev.time} - ` : ""}
-                                            {ev.title}
-                                            {ev.room ? ` (${ev.room})` : ""}
-                                        </div>
-                                    </button>
-                                ))}
+                                {dayEvents.map((ev) => {
+                                    const timeRange = formatTimeRange(ev.time, ev.endTime, "");
+                                    const title = [
+                                        timeRange || null,
+                                        ev.title,
+                                        ev.room ? `(${ev.room})` : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(" ");
+                                    return (
+                                        <button
+                                            key={ev.id}
+                                            type="button"
+                                            onClick={() => onSelectEvent(ev)}
+                                            className="w-full text-left flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-neutral-100 focus-visible:outline focus-visible:ring-2 focus-visible:ring-emerald-400"
+                                            title={title}
+                                        >
+                                            <span className={`w-3 h-3 rounded border ${statusDotClass(ev.status)}`} />
+                                            <div className="text-xs text-slate-700 truncate">
+                                                {timeRange ? `${timeRange} ` : ""}
+                                                {ev.title}
+                                                {ev.room ? ` (${ev.room})` : ""}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     );

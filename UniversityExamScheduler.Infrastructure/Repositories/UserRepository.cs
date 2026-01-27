@@ -27,7 +27,14 @@ public class UserRepository : BaseRepository<User>, IUserRepository
     public Task<int> CountByRoleAsync(Role role, CancellationToken cancellationToken = default) =>
         _set.CountAsync(u => u.Role == role, cancellationToken);
 
-    public async Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(string? query, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<(IEnumerable<User> Items, int TotalCount)> SearchAsync(
+        string? query,
+        Role? role,
+        bool? isActive,
+        bool? isStarosta,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var normalizedPage = page < 1 ? 1 : page;
         var normalizedPageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
@@ -37,6 +44,22 @@ public class UserRepository : BaseRepository<User>, IUserRepository
             .Include(u => u.GroupMemberships)
             .ThenInclude(m => m.Group)
             .AsQueryable();
+
+        if (role.HasValue)
+        {
+            users = users.Where(u => u.Role == role.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            users = users.Where(u => u.IsActive == isActive.Value);
+        }
+
+        if (isStarosta.HasValue)
+        {
+            users = users.Where(u => u.IsStarosta == isStarosta.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(query))
         {
             var q = query.Trim().ToLower();

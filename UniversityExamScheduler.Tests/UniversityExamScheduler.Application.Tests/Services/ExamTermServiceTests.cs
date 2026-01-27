@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging.Abstractions;
 using UniversityExamScheduler.Application.Contracts;
 using UniversityExamScheduler.Application.Dtos.ExamTerm.Request;
 using UniversityExamScheduler.Application.Exceptions;
@@ -17,18 +18,43 @@ public class ExamTermServiceTests
         return config.CreateMapper();
     }
 
-    private static (Mock<IUnitOfWork> Uow, Mock<IExamTermRepository> TermRepo, Mock<IExamSessionRepository> SessionRepo)
+    private static (
+        Mock<IUnitOfWork> Uow,
+        Mock<IExamTermRepository> TermRepo,
+        Mock<IExamSessionRepository> SessionRepo,
+        Mock<IExamRepository> ExamRepo,
+        Mock<IExamTermHistoryRepository> HistoryRepo)
         BuildUow()
     {
         var uow = new Mock<IUnitOfWork>();
         var termRepo = new Mock<IExamTermRepository>();
         var sessionRepo = new Mock<IExamSessionRepository>();
+        var examRepo = new Mock<IExamRepository>();
+        var historyRepo = new Mock<IExamTermHistoryRepository>();
 
         uow.SetupGet(x => x.ExamTerms).Returns(termRepo.Object);
         uow.SetupGet(x => x.ExamSessions).Returns(sessionRepo.Object);
+        uow.SetupGet(x => x.Exams).Returns(examRepo.Object);
+        uow.SetupGet(x => x.ExamTermHistories).Returns(historyRepo.Object);
         uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return (uow, termRepo, sessionRepo);
+        termRepo.Setup(x => x.ListOverlappingAsync(
+                It.IsAny<DateOnly>(),
+                It.IsAny<TimeOnly>(),
+                It.IsAny<TimeOnly>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExamTerm>());
+
+        examRepo.Setup(x => x.GetByIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => new Exam
+            {
+                Id = id,
+                LecturerId = Guid.NewGuid(),
+                GroupId = Guid.NewGuid()
+            });
+
+        return (uow, termRepo, sessionRepo, examRepo, historyRepo);
     }
 
     private static CreateExamTermDto CreateValidDto(Guid sessionId, DateOnly date)
@@ -68,13 +94,13 @@ public class ExamTermServiceTests
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
-        var (uow, _, sessionRepo) = BuildUow();
+        var (uow, _, sessionRepo, _, _) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
             .ReturnsAsync(new ExamSession { StartDate = today, EndDate = today.AddDays(5) });
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidDto(sessionId, today.AddDays(-1));
 
         Func<Task> act = () => service.AddAsync(dto);
@@ -88,13 +114,13 @@ public class ExamTermServiceTests
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
-        var (uow, _, sessionRepo) = BuildUow();
+        var (uow, _, sessionRepo, _, _) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
             .ReturnsAsync(new ExamSession { StartDate = today.AddDays(3), EndDate = today.AddDays(10) });
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidDto(sessionId, today.AddDays(1));
 
         Func<Task> act = () => service.AddAsync(dto);
@@ -108,13 +134,13 @@ public class ExamTermServiceTests
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
-        var (uow, _, sessionRepo) = BuildUow();
+        var (uow, _, sessionRepo, _, _) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
             .ReturnsAsync(new ExamSession { StartDate = today, EndDate = today.AddDays(10) });
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidDto(sessionId, today.AddDays(1));
         dto.StartTime = new TimeOnly(12, 0);
         dto.EndTime = new TimeOnly(12, 0);
@@ -130,13 +156,13 @@ public class ExamTermServiceTests
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
-        var (uow, _, sessionRepo) = BuildUow();
+        var (uow, _, sessionRepo, _, _) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
             .ReturnsAsync((ExamSession?)null);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidDto(sessionId, today.AddDays(1));
 
         Func<Task> act = () => service.AddAsync(dto);
@@ -150,14 +176,19 @@ public class ExamTermServiceTests
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
-        var (uow, termRepo, sessionRepo) = BuildUow();
+        var (uow, termRepo, sessionRepo, examRepo, historyRepo) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
             .ReturnsAsync(new ExamSession { StartDate = today, EndDate = today.AddDays(10) });
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var courseId = Guid.NewGuid();
+        examRepo.Setup(x => x.GetByIdAsync(courseId))
+            .ReturnsAsync(new Exam { Id = courseId, LecturerId = Guid.NewGuid(), GroupId = Guid.NewGuid() });
+
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidDto(sessionId, today.AddDays(1));
+        dto.CourseId = courseId;
 
         var result = await service.AddAsync(dto);
 
@@ -165,7 +196,53 @@ public class ExamTermServiceTests
         result.Date.Should().Be(dto.Date);
 
         termRepo.Verify(x => x.AddAsync(It.Is<ExamTerm>(t => t.SessionId == sessionId && t.Date == dto.Date), It.IsAny<CancellationToken>()), Times.Once);
+        historyRepo.Verify(x => x.AddAsync(It.Is<ExamTermHistory>(h => h.ExamTermId == result.Id), It.IsAny<CancellationToken>()), Times.Once);
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddAsync_WhenRoomConflict_ThrowsBusinessRuleException()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var sessionId = Guid.NewGuid();
+        var (uow, termRepo, sessionRepo, examRepo, historyRepo) = BuildUow();
+
+        sessionRepo
+            .Setup(x => x.GetByIdAsync(sessionId))
+            .ReturnsAsync(new ExamSession { StartDate = today, EndDate = today.AddDays(10) });
+
+        var courseId = Guid.NewGuid();
+        examRepo.Setup(x => x.GetByIdAsync(courseId))
+            .ReturnsAsync(new Exam { Id = courseId, LecturerId = Guid.NewGuid(), GroupId = Guid.NewGuid() });
+
+        var dto = CreateValidDto(sessionId, today.AddDays(1));
+        dto.CourseId = courseId;
+
+        var overlapping = new ExamTerm
+        {
+            Id = Guid.NewGuid(),
+            RoomId = dto.RoomId,
+            Status = ExamTermStatus.Approved
+        };
+
+        termRepo.Setup(x => x.ListOverlappingAsync(
+                dto.Date,
+                dto.StartTime,
+                dto.EndTime,
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExamTerm> { overlapping });
+
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
+
+        Func<Task> act = () => service.AddAsync(dto);
+
+        await act.Should().ThrowAsync<BusinessRuleException>()
+            .WithMessage("Exam term conflicts with existing schedule (room).");
+
+        termRepo.Verify(x => x.AddAsync(It.IsAny<ExamTerm>(), It.IsAny<CancellationToken>()), Times.Never);
+        historyRepo.Verify(x => x.AddAsync(It.IsAny<ExamTermHistory>(), It.IsAny<CancellationToken>()), Times.Never);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -173,13 +250,13 @@ public class ExamTermServiceTests
     {
         var sessionId = Guid.NewGuid();
         var termId = Guid.NewGuid();
-        var (uow, _, sessionRepo) = BuildUow();
+        var (uow, _, sessionRepo, _, _) = BuildUow();
         var date = DateOnly.FromDateTime(DateTime.UtcNow.Date).AddDays(1);
         var dto = CreateValidUpdateDto(sessionId, date);
 
         sessionRepo.Setup(x => x.GetByIdAsync(sessionId)).ReturnsAsync((ExamSession?)null);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
 
         Func<Task> act = () => service.UpdateAsync(termId, dto);
 
@@ -193,14 +270,14 @@ public class ExamTermServiceTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
         var termId = Guid.NewGuid();
-        var (uow, termRepo, sessionRepo) = BuildUow();
+        var (uow, termRepo, sessionRepo, _, _) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
             .ReturnsAsync(new ExamSession { StartDate = today, EndDate = today.AddDays(10) });
         termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync((ExamTerm?)null);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidUpdateDto(sessionId, today.AddDays(1));
 
         Func<Task> act = () => service.UpdateAsync(termId, dto);
@@ -215,7 +292,7 @@ public class ExamTermServiceTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var sessionId = Guid.NewGuid();
         var termId = Guid.NewGuid();
-        var (uow, termRepo, sessionRepo) = BuildUow();
+        var (uow, termRepo, sessionRepo, _, _) = BuildUow();
 
         sessionRepo
             .Setup(x => x.GetByIdAsync(sessionId))
@@ -233,7 +310,7 @@ public class ExamTermServiceTests
                 Type = ExamTermType.FirstAttempt
             });
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
         var dto = CreateValidUpdateDto(sessionId, today.AddDays(1));
 
         await service.UpdateAsync(termId, dto);
@@ -254,11 +331,11 @@ public class ExamTermServiceTests
     public async Task UpdateStatusAsync_WhenMissing_ThrowsEntityNotFoundException()
     {
         var termId = Guid.NewGuid();
-        var (uow, termRepo, _) = BuildUow();
+        var (uow, termRepo, _, _, _) = BuildUow();
 
         termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync((ExamTerm?)null);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
 
         Func<Task> act = () => service.UpdateStatusAsync(termId, ExamTermStatus.Approved, null);
 
@@ -270,13 +347,13 @@ public class ExamTermServiceTests
     public async Task UpdateStatusAsync_WhenValid_UpdatesAndSaves()
     {
         var termId = Guid.NewGuid();
-        var (uow, termRepo, _) = BuildUow();
-        var existing = new ExamTerm { Id = termId, Status = ExamTermStatus.Draft };
+        var (uow, termRepo, _, _, historyRepo) = BuildUow();
+        var existing = new ExamTerm { Id = termId, Status = ExamTermStatus.Draft, CreatedBy = Guid.NewGuid() };
         var rejectionReason = "Brak wolnej sali.";
 
         termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync(existing);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
 
         await service.UpdateStatusAsync(termId, ExamTermStatus.Rejected, rejectionReason);
 
@@ -284,18 +361,121 @@ public class ExamTermServiceTests
             t.Id == termId &&
             t.Status == ExamTermStatus.Rejected &&
             t.RejectionReason == rejectionReason), It.IsAny<CancellationToken>()), Times.Once);
+        historyRepo.Verify(x => x.AddAsync(It.Is<ExamTermHistory>(h => h.ExamTermId == termId && h.NewStatus == ExamTermStatus.Rejected), It.IsAny<CancellationToken>()), Times.Once);
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenConflictDetected_ThrowsBusinessRuleException()
+    {
+        var termId = Guid.NewGuid();
+        var courseId = Guid.NewGuid();
+        var lecturerId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var (uow, termRepo, _, examRepo, historyRepo) = BuildUow();
+        var date = DateOnly.FromDateTime(DateTime.UtcNow.Date).AddDays(1);
+
+        var existing = new ExamTerm
+        {
+            Id = termId,
+            CourseId = courseId,
+            Date = date,
+            StartTime = new TimeOnly(10, 0),
+            EndTime = new TimeOnly(12, 0),
+            Status = ExamTermStatus.ProposedByStudent,
+            CreatedBy = Guid.NewGuid()
+        };
+
+        termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync(existing);
+        examRepo.Setup(x => x.GetByIdAsync(courseId))
+            .ReturnsAsync(new Exam { Id = courseId, LecturerId = lecturerId, GroupId = groupId });
+
+        var overlap = new ExamTerm
+        {
+            Id = Guid.NewGuid(),
+            Exam = new Exam { LecturerId = lecturerId, GroupId = Guid.NewGuid() },
+            Status = ExamTermStatus.Approved
+        };
+
+        termRepo.Setup(x => x.ListOverlappingAsync(
+                existing.Date,
+                existing.StartTime,
+                existing.EndTime,
+                termId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExamTerm> { overlap });
+
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
+
+        Func<Task> act = () => service.UpdateStatusAsync(termId, ExamTermStatus.Approved, null);
+
+        await act.Should().ThrowAsync<BusinessRuleException>()
+            .WithMessage("Exam term conflicts with existing schedule (lecturer).");
+
+        termRepo.Verify(x => x.UpdateAsync(It.IsAny<ExamTerm>(), It.IsAny<CancellationToken>()), Times.Never);
+        historyRepo.Verify(x => x.AddAsync(It.IsAny<ExamTermHistory>(), It.IsAny<CancellationToken>()), Times.Never);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenRejected_DoesNotOverrideWithConflict()
+    {
+        var termId = Guid.NewGuid();
+        var courseId = Guid.NewGuid();
+        var lecturerId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var (uow, termRepo, _, examRepo, historyRepo) = BuildUow();
+        var date = DateOnly.FromDateTime(DateTime.UtcNow.Date).AddDays(1);
+        var reason = "Powod organizacyjny.";
+
+        var existing = new ExamTerm
+        {
+            Id = termId,
+            CourseId = courseId,
+            Date = date,
+            StartTime = new TimeOnly(9, 0),
+            EndTime = new TimeOnly(10, 0),
+            Status = ExamTermStatus.ProposedByStudent,
+            CreatedBy = Guid.NewGuid()
+        };
+
+        termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync(existing);
+        examRepo.Setup(x => x.GetByIdAsync(courseId))
+            .ReturnsAsync(new Exam { Id = courseId, LecturerId = lecturerId, GroupId = groupId });
+
+        var overlap = new ExamTerm
+        {
+            Id = Guid.NewGuid(),
+            Exam = new Exam { LecturerId = lecturerId, GroupId = groupId },
+            Status = ExamTermStatus.Approved
+        };
+
+        termRepo.Setup(x => x.ListOverlappingAsync(
+                existing.Date,
+                existing.StartTime,
+                existing.EndTime,
+                termId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ExamTerm> { overlap });
+
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
+
+        await service.UpdateStatusAsync(termId, ExamTermStatus.Rejected, reason);
+
+        existing.Status.Should().Be(ExamTermStatus.Rejected);
+        existing.RejectionReason.Should().Be(reason);
+        historyRepo.Verify(x => x.AddAsync(It.Is<ExamTermHistory>(h => h.ExamTermId == termId && h.NewStatus == ExamTermStatus.Rejected), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task RemoveAsync_WhenMissing_ThrowsEntityNotFoundException()
     {
         var termId = Guid.NewGuid();
-        var (uow, termRepo, _) = BuildUow();
+        var (uow, termRepo, _, _, _) = BuildUow();
 
         termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync((ExamTerm?)null);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
 
         Func<Task> act = () => service.RemoveAsync(termId);
 
@@ -307,12 +487,12 @@ public class ExamTermServiceTests
     public async Task RemoveAsync_WhenValid_RemovesAndSaves()
     {
         var termId = Guid.NewGuid();
-        var (uow, termRepo, _) = BuildUow();
+        var (uow, termRepo, _, _, _) = BuildUow();
         var existing = new ExamTerm { Id = termId };
 
         termRepo.Setup(x => x.GetByIdAsync(termId)).ReturnsAsync(existing);
 
-        var service = new ExamTermService(uow.Object, CreateMapper());
+        var service = new ExamTermService(uow.Object, CreateMapper(), NullLogger<ExamTermService>.Instance);
 
         await service.RemoveAsync(termId);
 

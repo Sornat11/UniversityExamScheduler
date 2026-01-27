@@ -4,6 +4,7 @@ using UniversityExamScheduler.Application.Contracts;
 using UniversityExamScheduler.Application.Dtos.ExamTermHistory.Request;
 using UniversityExamScheduler.Application.Exceptions;
 using UniversityExamScheduler.Domain.Entities;
+using UniversityExamScheduler.Domain.Enums;
 
 namespace UniversityExamScheduler.Application.Services;
 
@@ -12,6 +13,17 @@ public interface IExamTermHistoryService
     Task<ExamTermHistory?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<ExamTermHistory>> ListAsync(CancellationToken cancellationToken = default);
     Task<IEnumerable<ExamTermHistory>> ListByExamTermAsync(Guid examTermId, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<ExamTermHistory> Items, int TotalCount)> SearchAsync(
+        Guid? examTermId,
+        Guid? changedBy,
+        ExamTermStatus? previousStatus,
+        ExamTermStatus? newStatus,
+        DateTime? changedFrom,
+        DateTime? changedTo,
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     Task<ExamTermHistory> AddAsync(CreateExamTermHistoryDto historyDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateExamTermHistoryDto historyDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -36,6 +48,29 @@ public class ExamTermHistoryService : IExamTermHistoryService
 
     public Task<IEnumerable<ExamTermHistory>> ListByExamTermAsync(Guid examTermId, CancellationToken cancellationToken = default) =>
         _uow.ExamTermHistories.ListByExamTermAsync(examTermId, cancellationToken);
+
+    public Task<(IEnumerable<ExamTermHistory> Items, int TotalCount)> SearchAsync(
+        Guid? examTermId,
+        Guid? changedBy,
+        ExamTermStatus? previousStatus,
+        ExamTermStatus? newStatus,
+        DateTime? changedFrom,
+        DateTime? changedTo,
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _uow.ExamTermHistories.SearchAsync(
+            examTermId,
+            changedBy,
+            previousStatus,
+            newStatus,
+            changedFrom,
+            changedTo,
+            search,
+            page,
+            pageSize,
+            cancellationToken);
 
     public async Task<ExamTermHistory> AddAsync(CreateExamTermHistoryDto historyDto, CancellationToken cancellationToken = default)
     {

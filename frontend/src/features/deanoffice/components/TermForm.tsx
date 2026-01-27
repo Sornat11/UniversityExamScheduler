@@ -2,6 +2,17 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { ExamSessionDto, ExamTermStatus, ExamTermType, RoomDto } from "../../../api/admin";
 
+const EXAM_DURATION_MINUTES = 90;
+
+function addMinutes(time: string, minutes: number) {
+    const [h, m] = time.split(":").map((v) => Number(v));
+    if (Number.isNaN(h) || Number.isNaN(m)) return "";
+    const total = h * 60 + m + minutes;
+    const hh = Math.floor(total / 60) % 24;
+    const mm = total % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
 type FormState = {
     courseId: string;
     sessionId: string;
@@ -21,15 +32,17 @@ type Props = {
 };
 
 export function TermForm({ sessions, rooms, defaultCourseId, onSave }: Props) {
+    const defaultStart = "09:00";
+    const defaultEnd = addMinutes(defaultStart, EXAM_DURATION_MINUTES);
     const [form, setForm] = useState<FormState>({
         courseId: defaultCourseId,
         sessionId: sessions[0]?.id ?? "",
         roomId: "",
         date: "",
-        startTime: "09:00",
-        endTime: "10:30",
+        startTime: defaultStart,
+        endTime: defaultEnd,
         type: "FirstAttempt",
-        status: "Draft",
+        status: "ProposedByLecturer",
     });
 
     return (
@@ -83,7 +96,14 @@ export function TermForm({ sessions, rooms, defaultCourseId, onSave }: Props) {
                         type="time"
                         className="border rounded-lg px-3 py-2 w-full"
                         value={form.startTime}
-                        onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                        onChange={(e) => {
+                            const nextStart = e.target.value;
+                            setForm((f) => ({
+                                ...f,
+                                startTime: nextStart,
+                                endTime: addMinutes(nextStart, EXAM_DURATION_MINUTES),
+                            }));
+                        }}
                     />
                 </label>
                 <label className="text-sm space-y-1">
@@ -92,7 +112,7 @@ export function TermForm({ sessions, rooms, defaultCourseId, onSave }: Props) {
                         type="time"
                         className="border rounded-lg px-3 py-2 w-full"
                         value={form.endTime}
-                        onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                        readOnly
                     />
                 </label>
                 <label className="text-sm space-y-1">
@@ -116,7 +136,6 @@ export function TermForm({ sessions, rooms, defaultCourseId, onSave }: Props) {
                     value={form.status}
                     onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ExamTermStatus }))}
                 >
-                    <option value="Draft">Szkic</option>
                     <option value="ProposedByLecturer">Propozycja (prowadzacy)</option>
                     <option value="ProposedByStudent">Propozycja (student)</option>
                     <option value="Approved">Zatwierdzony</option>

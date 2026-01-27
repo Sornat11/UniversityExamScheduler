@@ -12,6 +12,14 @@ public interface IExamService
     Task<Exam?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IEnumerable<Exam>> ListAsync(CancellationToken cancellationToken = default);
     Task<IEnumerable<Exam>> ListForStudentAsync(Guid studentId, CancellationToken cancellationToken = default);
+    Task<(IEnumerable<Exam> Items, int TotalCount)> SearchAsync(
+        string? search,
+        Guid? lecturerId,
+        Guid? groupId,
+        Guid? studentId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     Task<Exam> AddAsync(CreateExamDto examDto, CancellationToken cancellationToken = default);
     Task UpdateAsync(Guid id, UpdateExamDto examDto, CancellationToken cancellationToken = default);
     Task RemoveAsync(Guid id, CancellationToken cancellationToken = default);
@@ -36,6 +44,16 @@ public class ExamService : IExamService
 
     public Task<IEnumerable<Exam>> ListForStudentAsync(Guid studentId, CancellationToken cancellationToken = default) =>
         _uow.Exams.ListForStudentAsync(studentId, cancellationToken);
+
+    public Task<(IEnumerable<Exam> Items, int TotalCount)> SearchAsync(
+        string? search,
+        Guid? lecturerId,
+        Guid? groupId,
+        Guid? studentId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        _uow.Exams.SearchAsync(search, lecturerId, groupId, studentId, page, pageSize, cancellationToken);
 
     public async Task<Exam> AddAsync(CreateExamDto examDto, CancellationToken cancellationToken = default)
     {

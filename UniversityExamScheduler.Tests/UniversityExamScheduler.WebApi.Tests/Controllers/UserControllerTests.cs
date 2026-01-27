@@ -69,12 +69,12 @@ public class UserControllerTests
             LastName = "Kowalski",
             Role = Role.Student
         };
-        userService.Setup(s => s.SearchAsync("test", 1, 20, It.IsAny<CancellationToken>()))
+        userService.Setup(s => s.SearchAsync("test", null, null, null, 1, 20, It.IsAny<CancellationToken>()))
             .ReturnsAsync((new[] { user }, 1));
         var mapper = ControllerTestHelper.CreateMapper();
         var controller = new UserController(userService.Object, mapper);
 
-        var result = await controller.GetByEmail(null, "test", 0, 0, default);
+        var result = await controller.GetByEmail(null, "test", null, null, null, 0, 0, default);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var paged = ok.Value.Should().BeOfType<PagedResult<GetUserDto>>().Subject;
